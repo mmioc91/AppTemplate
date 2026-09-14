@@ -8,6 +8,21 @@ Frontend (later): Angular PWA in `web/`.
 
 ---
 
+## New project from this template
+
+```powershell
+# 1. On GitHub: "Use this template" -> Create a new repository
+# 2. Clone the new repo locally, then from its root:
+powershell -ExecutionPolicy Bypass -File .\rename-template.ps1 -NewName Slicice
+
+# This renames "AppTemplate" -> "Slicice" (and "apptemplate" -> "slicice") in both
+# file contents and file/folder names (namespaces, csproj, sln, docker-compose, README...).
+
+# 3. Delete rename-template.ps1 (no longer needed in the new project), then commit.
+```
+
+---
+
 ## Getting started
 
 ```powershell
