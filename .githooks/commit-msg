@@ -1,0 +1,24 @@
+#!/usr/bin/env bash
+# Checks that the commit message follows Conventional Commits.
+# Activated via: git config core.hooksPath .githooks
+
+first_line=$(head -n1 "$1")
+pattern='^(feat|fix|hotfix|refactor|perf|test|docs|chore|ci|infra)(\([a-z0-9.-]+\))?: .{1,60}$'
+
+# Merge and revert commits are allowed through
+if echo "$first_line" | grep -Eq '^(Merge|Revert)'; then
+  exit 0
+fi
+
+if ! echo "$first_line" | grep -Eq "$pattern"; then
+  echo "❌ Poruka ne poštuje Conventional Commits."
+  echo ""
+  echo "   Format: <tip>(<opseg>): <opis>"
+  echo "   Tipovi: feat fix hotfix refactor perf test docs chore ci infra"
+  echo "   Primjer: feat(inventory): add rapid numpad entry"
+  echo ""
+  echo "   Tvoja poruka: $first_line"
+  exit 1
+fi
+
+exit 0

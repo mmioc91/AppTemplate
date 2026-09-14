@@ -1,0 +1,25 @@
+<Solution>
+  <Folder Name="/Solution Items/">
+    <File Path="CLAUDE.md" />
+    <File Path=".editorconfig" />
+    <File Path="Directory.Build.props" />
+    <File Path="Directory.Packages.props" />
+    <File Path="NuGet.Config" />
+    <File Path="docker-compose.yml" />
+    <File Path="bootstrap.ps1" />
+    <File Path="README.md" />
+  </Folder>
+  <Folder Name="/src/">
+    <Project Path="src/AppTemplate.Api/AppTemplate.Api.csproj" />
+    <Project Path="src/AppTemplate.Application/AppTemplate.Application.csproj" />
+    <Project Path="src/AppTemplate.Domain/AppTemplate.Domain.csproj" />
+    <Project Path="src/AppTemplate.Infrastructure/AppTemplate.Infrastructure.csproj" />
+    <Project Path="src/AppTemplate.SharedKernel/AppTemplate.SharedKernel.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/AppTemplate.Application.Tests/AppTemplate.Application.Tests.csproj" />
+    <Project Path="tests/AppTemplate.Architecture.Tests/AppTemplate.Architecture.Tests.csproj" />
+    <Project Path="tests/AppTemplate.Domain.Tests/AppTemplate.Domain.Tests.csproj" />
+    <Project Path="tests/AppTemplate.Integration.Tests/AppTemplate.Integration.Tests.csproj" />
+  </Folder>
+</Solution>

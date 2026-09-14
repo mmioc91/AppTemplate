@@ -1,0 +1,42 @@
+# ---------- .NET ----------
+bin/
+obj/
+[Dd]ebug/
+[Rr]elease/
+*.user
+*.suo
+*.userprefs
+.vs/
+TestResults/
+coverage/
+*.trx
+*.coverage
+artifacts/
+
+# ---------- Node / Angular ----------
+node_modules/
+web/dist/
+web/.angular/
+npm-debug.log*
+yarn-error.log*
+
+# ---------- IDE ----------
+.idea/
+*.swp
+.DS_Store
+
+# ---------- Secrets and local config ----------
+# NEVER commit secrets. Use dotnet user-secrets locally,
+# Key Vault / env variables in production.
+.env
+.env.*
+appsettings.*.Local.json
+appsettings.Local.json
+*.pfx
+*.p12
+*.publishsettings
+*.pubxml
+
+# ---------- Misc ----------
+migrate
+migrate.exe
