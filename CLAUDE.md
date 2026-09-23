@@ -44,6 +44,7 @@ Chat with Claude can be in any language; everything written into the repo (code,
 `dotnet build AppTemplate.slnx` · `dotnet test AppTemplate.slnx` · `dotnet run --project src/AppTemplate.Api`
 `docker compose up -d` (Postgres) · `dotnet user-secrets set "ConnectionStrings:Db" "..."` (from `src/AppTemplate.Api`)
 `dotnet ef migrations add <Name> --project src/AppTemplate.Infrastructure --startup-project src/AppTemplate.Api`
+`dotnet tool run dotnet-stryker` (from `src/AppTemplate.Domain`) — mutation testing, manual/local only, see `tests/AppTemplate.Domain.Tests/CLAUDE.md`
 
 CI (`.github/workflows/`): `ci-backend.yml` (PR/push to `main`, path-filtered on `src/`, `tests/`, `Directory.*.props`), `ci-web.yml` (same, for `web/`), `pr-title.yml` (Conventional Commits PR title check), `secrets-scan.yml` (gitleaks). No secrets needed — NuGet restore is scoped to `nuget.org` only.
 

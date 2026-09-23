@@ -12,6 +12,7 @@ coverage/
 *.trx
 *.coverage
 artifacts/
+StrykerOutput/
 
 # ---------- Node / Angular ----------
 node_modules/
