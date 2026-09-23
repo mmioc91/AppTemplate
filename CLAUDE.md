@@ -45,11 +45,6 @@ Chat with Claude can be in any language; everything written into the repo (code,
 `docker compose up -d` (Postgres) · `dotnet user-secrets set "ConnectionStrings:Db" "..."` (from `src/AppTemplate.Api`)
 `dotnet ef migrations add <Name> --project src/AppTemplate.Infrastructure --startup-project src/AppTemplate.Api`
 
-**GitHub remote setup (one-time, no remote configured yet):**
-```
-git remote add origin <repo-url>
-git push -u origin main
-```
 CI (`.github/workflows/`): `ci-backend.yml` (PR/push to `main`, path-filtered on `src/`, `tests/`, `Directory.*.props`), `ci-web.yml` (same, for `web/`), `pr-title.yml` (Conventional Commits PR title check), `secrets-scan.yml` (gitleaks). No secrets needed — NuGet restore is scoped to `nuget.org` only.
 
 ## What to avoid

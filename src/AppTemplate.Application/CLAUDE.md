@@ -19,5 +19,4 @@ See root `CLAUDE.md` for cross-cutting rules.
   actual use cases are being built.
 
 ## Tests
-Use-case tests with fake/in-memory ports (no DB, no `WebApplicationFactory`). NSubstitute for the fakes, Shouldly
-for assertions. Assert the outcome (Result/exception) and that the right port methods were called.
+See `tests/AppTemplate.Application.Tests/CLAUDE.md`.

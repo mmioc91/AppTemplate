@@ -23,6 +23,4 @@ See root `CLAUDE.md` for cross-cutting rules that also apply here.
 
 ## Tests
 
-xUnit + Shouldly (see root `CLAUDE.md` — this template uses Shouldly, not FluentAssertions). Pure logic only, no I/O,
-no framework references — same purity rule as the production code. Test invariants directly (e.g. calling a
-state-changing method a second time should throw where that's an invariant).
+See `tests/AppTemplate.Domain.Tests/CLAUDE.md`.

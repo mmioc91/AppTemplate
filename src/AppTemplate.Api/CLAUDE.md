@@ -15,5 +15,4 @@ See root `CLAUDE.md` for cross-cutting rules.
   package (Scalar/Swagger) only if the project actually needs one rendered.
 
 ## Tests
-Functional tests with `WebApplicationFactory<Program>` (`Microsoft.AspNetCore.Mvc.Testing`), DB via
-`Testcontainers.PostgreSql`: 401 without a token, 403 with the wrong role, `ProblemDetails` mapping, happy path.
+See `tests/AppTemplate.Integration.Tests/CLAUDE.md`.

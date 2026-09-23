@@ -20,6 +20,4 @@ See root `CLAUDE.md` for cross-cutting rules.
   IServiceCollection ...)`), called once from `Program.cs`.
 
 ## Tests
-Integration tests with **Testcontainers.PostgreSql** (a real Postgres, not a fake). **Never** `UseInMemoryDatabase`
-or mock `DbContext`. If optimistic concurrency (e.g. a `xmin`/rowversion token) is introduced later, test the
-actual conflict path, not just the happy path.
+See `tests/AppTemplate.Integration.Tests/CLAUDE.md`.
