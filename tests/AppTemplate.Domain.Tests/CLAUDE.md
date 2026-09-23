@@ -7,3 +7,7 @@ See root `CLAUDE.md` and `src/AppTemplate.Domain/CLAUDE.md` for the rules this p
 - Pure logic only: no I/O, no EF Core, no framework references — same purity rule as the Domain project itself.
 - Test invariants directly (e.g. calling a state-changing method a second time should throw where that's an
   invariant), not incidental implementation detail.
+- **Mutation testing** (Stryker.NET, config at `src/AppTemplate.Domain/stryker-config.json`): run
+  `dotnet tool run dotnet-stryker` from `src/AppTemplate.Domain`. Manual/local only for now — too slow for
+  `dotnet build`/`dotnet test` or CI, same reasoning as skipping integration tests in `pre-push`. Report-only
+  (`break: 0`); no enforced threshold yet.
