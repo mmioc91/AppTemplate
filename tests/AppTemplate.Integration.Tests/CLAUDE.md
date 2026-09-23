@@ -4,7 +4,9 @@ See root `CLAUDE.md`, `src/AppTemplate.Infrastructure/CLAUDE.md` and `src/AppTem
 this project tests — it covers both database-level integration tests and Api-level functional tests.
 
 ## Rules
-- Real Postgres via **Testcontainers.PostgreSql** — never `UseInMemoryDatabase`, never mock `DbContext`.
+- Real Postgres via **Testcontainers.PostgreSql** — never `UseInMemoryDatabase`, never mock `DbContext`. If
+  optimistic concurrency (e.g. a `xmin`/rowversion token) is introduced later, test the actual conflict path, not
+  just the happy path.
 - HTTP-level tests use `WebApplicationFactory<Program>` (`Microsoft.AspNetCore.Mvc.Testing`): 401 without a token,
   403 with the wrong role, `ProblemDetails` mapping, happy path.
 - Shouldly for assertions.
