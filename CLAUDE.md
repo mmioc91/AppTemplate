@@ -29,8 +29,8 @@ Chat with Claude can be in any language; everything written into the repo (code,
 - **Central Package Management:** all package versions live in `Directory.Packages.props`; individual `.csproj` files use bare `<PackageReference Include="X" />` with no `Version=`.
 - **TargetFramework** lives only in `Directory.Build.props` (`net10.0`), never in individual `.csproj` files.
 - **NuGet sources:** restricted to `nuget.org` via the repo's `NuGet.Config` (`<clear/>` + package source mapping) — needed because multiple configured sources + Central Package Management trigger NU1507, escalated to a build error by `TreatWarningsAsErrors`.
-- **Time:** never `DateTime.Now`/`UtcNow` — use `TimeProvider`.
-- **Async:** pass `CancellationToken` everywhere; never block; no `async void`.
+- **Time:** never `DateTime.Now`/`UtcNow` — use `TimeProvider`; enforced as a build error by `BannedApiAnalyzers` (RS0030, see `BannedSymbols.txt`).
+- **Async:** pass `CancellationToken` everywhere (forwarding it is a build error via `CA2016`); never block; no `async void`.
 - **APIs:** Minimal APIs, prefer `TypedResults`; version endpoints via `Asp.Versioning.Http`; immutable `record` DTOs; never expose EF entities directly (map with Mapster).
 - **Config:** Options pattern (`ValidateOnStart`); secrets via `dotnet user-secrets` locally, never in source (`.gitignore` blocks `appsettings.*.Local.json`, `.env*`, etc.).
 - **Modern C#:** primary ctors, collection expressions, pattern matching, records where they help.
@@ -48,7 +48,7 @@ Chat with Claude can be in any language; everything written into the repo (code,
 CI (`.github/workflows/`): `ci-backend.yml` (PR/push to `main`, path-filtered on `src/`, `tests/`, `Directory.*.props`), `ci-web.yml` (same, for `web/`), `pr-title.yml` (Conventional Commits PR title check), `secrets-scan.yml` (gitleaks). No secrets needed — NuGet restore is scoped to `nuget.org` only.
 
 ## What to avoid
-Deps in SharedKernel or Domain · EF Core/Npgsql/Dapper/ASP.NET Core packages in Application · `DateTime.Now`/`UtcNow`, magic strings, service-locator · in-memory DB in tests (use `Testcontainers.PostgreSql`) · `var` where an explicit type is required (build error, see `.editorconfig`) · inline `Version=` on `PackageReference` or `TargetFramework` in individual `.csproj` files · over-abstracting.
+Deps in SharedKernel or Domain · EF Core/Npgsql/Dapper/ASP.NET Core packages in Application · `DateTime.Now`/`UtcNow` (build error, see `BannedSymbols.txt`), magic strings, service-locator · in-memory DB in tests (use `Testcontainers.PostgreSql`; build error, see `BannedSymbols.txt`) · `var` where an explicit type is required (build error, see `.editorconfig`) · inline `Version=` on `PackageReference` or `TargetFramework` in individual `.csproj` files · over-abstracting.
 
 ## Workflow with Claude
 Don't make edits on your own initiative — **propose a plan first** (what you'd change and why) and wait for explicit approval before writing to any file. This applies beyond "non-trivial" changes: including config/build files (`.slnx`, `.csproj`, `Directory.*.props`, etc.), not just application code.
