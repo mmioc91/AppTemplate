@@ -7,6 +7,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
+    <NuGetAuditMode>all</NuGetAuditMode>
   </PropertyGroup>
 
   <!--
@@ -16,5 +17,10 @@
     If TreatWarningsAsErrors gets in your way while prototyping, feel free to
     temporarily set it to false — but restore it before the repo grows.
   -->
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.CodeAnalysis.BannedApiAnalyzers" PrivateAssets="all" />
+    <AdditionalFiles Include="$(MSBuildThisFileDirectory)BannedSymbols.txt" />
+  </ItemGroup>
 
 </Project>
