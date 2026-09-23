@@ -54,8 +54,8 @@ Get-ChildItem -Recurse -File | Where-Object {
 } | ForEach-Object {
     $content = Get-Content -Path $_.FullName -Raw -ErrorAction SilentlyContinue
     if ($null -eq $content) { return }
-    if ($content -match [regex]::Escape($Old) -or $content -match [regex]::Escape($OldLower)) {
-        $updated = $content -replace [regex]::Escape($Old), $NewName -replace [regex]::Escape($OldLower), $NewLower
+    if ($content -cmatch [regex]::Escape($Old) -or $content -cmatch [regex]::Escape($OldLower)) {
+        $updated = $content -creplace [regex]::Escape($Old), $NewName -creplace [regex]::Escape($OldLower), $NewLower
         Set-Content -Path $_.FullName -Value $updated -NoNewline
         $rel = $_.FullName.Substring($PWD.Path.Length + 1)
         Write-Host "    updated: $rel" -ForegroundColor DarkGray
@@ -70,19 +70,19 @@ Write-Host "`n==> Renaming files and folders" -ForegroundColor Cyan
 # Files first (all at once), then folders deepest-first — so renaming a parent
 # folder doesn't invalidate paths we already computed.
 Get-ChildItem -Recurse -File |
-    Where-Object { -not (Test-SkipPath $_.FullName) -and $_.Name -match [regex]::Escape($Old) } |
+    Where-Object { -not (Test-SkipPath $_.FullName) -and $_.Name -cmatch [regex]::Escape($Old) } |
     Sort-Object { $_.FullName.Length } -Descending |
     ForEach-Object {
-        $newFileName = $_.Name -replace [regex]::Escape($Old), $NewName
+        $newFileName = $_.Name -creplace [regex]::Escape($Old), $NewName
         Rename-Item -Path $_.FullName -NewName $newFileName
         Write-Host "    file:   $($_.Name)  ->  $newFileName" -ForegroundColor DarkGray
     }
 
 Get-ChildItem -Recurse -Directory |
-    Where-Object { -not (Test-SkipPath $_.FullName) -and $_.Name -match [regex]::Escape($Old) } |
+    Where-Object { -not (Test-SkipPath $_.FullName) -and $_.Name -cmatch [regex]::Escape($Old) } |
     Sort-Object { $_.FullName.Length } -Descending |
     ForEach-Object {
-        $newDirName = $_.Name -replace [regex]::Escape($Old), $NewName
+        $newDirName = $_.Name -creplace [regex]::Escape($Old), $NewName
         Rename-Item -Path $_.FullName -NewName $newDirName
         Write-Host "    folder: $($_.Name)  ->  $newDirName" -ForegroundColor DarkGray
     }
