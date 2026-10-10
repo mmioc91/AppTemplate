@@ -20,6 +20,8 @@ public abstract class Enumeration<TEnum>(int value, string name) : IEquatable<En
     public static TEnum? FromName(string name) =>
         Enumerations.Values.FirstOrDefault(e => e.Name.Equals(name, StringComparison.OrdinalIgnoreCase));
 
+    public static IReadOnlyCollection<TEnum> GetAll() => Enumerations.Values;
+
     public bool Equals(Enumeration<TEnum>? other) =>
         other is not null && GetType() == other.GetType() && Value == other.Value;
 

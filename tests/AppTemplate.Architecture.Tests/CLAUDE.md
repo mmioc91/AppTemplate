@@ -1,6 +1,7 @@
 # Architecture tests
 
-See root `CLAUDE.md` for the dependency-direction rules this project enforces.
+See `tests/CLAUDE.md` for shared test conventions, and root `CLAUDE.md` for the dependency-direction rules this
+project enforces.
 
 ## Rules
 - **NetArchTest.Rules** + Shouldly. Every `[Fact]` here is a real, build-time guard against a layer or

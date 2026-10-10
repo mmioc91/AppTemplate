@@ -1,0 +1,8 @@
+{
+  "stryker-config": {
+    "test-projects": ["../../tests/AppTemplate.Application.Tests/AppTemplate.Application.Tests.csproj"],
+    "reporters": ["html", "progress"],
+    "ignore-mutations": ["string"],
+    "thresholds": { "high": 80, "low": 60, "break": 0 }
+  }
+}

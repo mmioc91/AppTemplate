@@ -2,7 +2,8 @@ namespace AppTemplate.SharedKernel;
 
 public abstract class Entity<TId>
 {
-    public TId Id { get; protected set; } = default!;
+    // Set once, by this class's constructor only: neither outside code nor a derived entity can assign or change it.
+    public TId Id { get; private init; } = default!;
 
     protected Entity() { }
 
