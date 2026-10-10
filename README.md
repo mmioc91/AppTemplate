@@ -86,7 +86,7 @@ Unfinished work goes into `main` **behind a feature flag**, not on a long-lived 
 
 | Workflow | When it runs |
 |---|---|
-| `backend-ci` | PR / push to `main` with changes in `src/` or `tests/` |
+| `backend-ci` | every PR; push to `main` with changes in `src/` or `tests/` |
 | `web-ci` | same, for `web/` |
 | `pr-title` | on every PR (PR title = commit on `main` due to squash merge) |
 

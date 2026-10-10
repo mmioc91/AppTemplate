@@ -1,12 +1,10 @@
 name: backend-ci
 
 on:
+  # No `paths:` filter on pull_request: build-test is a required check in the
+  # main-protection ruleset, and a path-filtered workflow that doesn't run leaves
+  # docs/CI-only PRs stuck on "Expected - Waiting for status to be reported".
   pull_request:
-    paths:
-      - 'src/**'
-      - 'tests/**'
-      - 'Directory.*.props'
-      - '.github/workflows/ci-backend.yml'
   push:
     branches: [main]
     paths:
