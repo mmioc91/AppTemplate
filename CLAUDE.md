@@ -46,7 +46,7 @@ Chat with Claude can be in any language; everything written into the repo (code,
 `dotnet ef migrations add <Name> --project src/AppTemplate.Infrastructure --startup-project src/AppTemplate.Api`
 `dotnet tool run dotnet-stryker` (from `src/AppTemplate.Domain`) — mutation testing, manual/local only, see `tests/AppTemplate.Domain.Tests/CLAUDE.md`
 
-CI (`.github/workflows/`): `ci-backend.yml` (PR/push to `main`, path-filtered on `src/`, `tests/`, `Directory.*.props`), `ci-web.yml` (same, for `web/`), `pr-title.yml` (Conventional Commits PR title check), `secrets-scan.yml` (gitleaks). No secrets needed — NuGet restore is scoped to `nuget.org` only.
+CI (`.github/workflows/`): `ci-backend.yml` (every PR, deliberately not path-filtered because `build-test` is a required check; push to `main` path-filtered on `src/`, `tests/`, `Directory.*.props`), `ci-web.yml` (path-filtered on `web/`), `pr-title.yml` (Conventional Commits PR title check), `secrets-scan.yml` (gitleaks). No secrets needed — NuGet restore is scoped to `nuget.org` only.
 
 ## What to avoid
 Deps in SharedKernel or Domain · EF Core/Npgsql/Dapper/ASP.NET Core packages in Application · `DateTime.Now`/`UtcNow` (build error, see `BannedSymbols.txt`), magic strings, service-locator · in-memory DB in tests (use `Testcontainers.PostgreSql`; build error, see `BannedSymbols.txt`) · `var` where an explicit type is required (build error, see `.editorconfig`) · inline `Version=` on `PackageReference` or `TargetFramework` in individual `.csproj` files · over-abstracting.
