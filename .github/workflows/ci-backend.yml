@@ -51,3 +51,44 @@ jobs:
         with:
           name: backend-test-results
           path: '**/*.trx'
+
+  # Report-only (break threshold 0 in each stryker-config.json); runs in parallel with build-test so PRs don't wait on
+  # it. Only projects whose tests run without a database (ADR 0017).
+  mutation:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        project: [Domain, Application]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # --since needs the base branch history
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.x'
+
+      - name: Cache NuGet
+        uses: actions/cache@v4
+        with:
+          path: ~/.nuget/packages
+          key: nuget-${{ hashFiles('**/*.csproj', 'Directory.Packages.props') }}
+          restore-keys: nuget-
+
+      - name: Restore tools
+        run: dotnet tool restore
+
+      - name: Mutation testing (${{ matrix.project }} code changed in this PR)
+        working-directory: src/AppTemplate.${{ matrix.project }}
+        run: dotnet tool run dotnet-stryker --since:origin/${{ github.base_ref }}
+
+      - name: Upload mutation report
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: mutation-report-${{ matrix.project }}
+          path: src/AppTemplate.${{ matrix.project }}/StrykerOutput/**/reports/
+          if-no-files-found: ignore

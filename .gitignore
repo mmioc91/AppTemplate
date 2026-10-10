@@ -38,6 +38,10 @@ appsettings.Local.json
 *.publishsettings
 *.pubxml
 
+# ---------- Claude Code ----------
+# Per-machine permissions; shared agents and settings under .claude/ are committed.
+.claude/settings.local.json
+
 # ---------- Misc ----------
 migrate
 migrate.exe
