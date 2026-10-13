@@ -2,7 +2,7 @@
 
 One file per decision. A decision is never deleted or rewritten — when it changes, add a new ADR and mark the old
 one `Superseded by NNNN`. The ADRs below are the template's baseline: every project created from it starts with them
-and adds its own from 0021 on. Product design (what to build) lives in the project's own docs; these ADRs record how
+and adds its own after the last one here. Product design (what to build) lives in the project's own docs; these ADRs record how
 the code implements it and every choice that had to be made along the way.
 
 ## Index
@@ -29,6 +29,7 @@ the code implements it and every choice that had to be made along the way.
 | 0018 | [HTTP error contract](0018-http-error-contract.md) | Accepted | 2026-09-29 |
 | 0019 | [Separate liveness and readiness health checks](0019-liveness-and-readiness-health-checks.md) | Accepted | 2026-09-29 |
 | 0020 | [Missing value-type fields are REQUIRED, not defaults](0020-missing-value-fields-are-required.md) | Accepted | 2026-09-29 |
+| 0021 | [Git stores text files with LF](0021-git-stores-text-files-with-lf.md) | Accepted | 2026-10-13 |
 
 ## Open questions
 

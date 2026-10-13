@@ -1,19 +1,20 @@
 #!/usr/bin/env bash
-# Blocks push to main, checks branch name and runs fast unit tests.
+# Blocks push to main, checks the branch name and runs the fast unit tests.
 # Activated via: git config core.hooksPath .githooks
 
 branch=$(git rev-parse --abbrev-ref HEAD)
-pattern='^(feat|fix|hotfix|refactor|perf|test|docs|chore|ci|infra)/[a-z0-9._-]+$'
+# <type>/<description>, or claude/<name> for the worktree branches the Claude desktop app creates.
+pattern='^((feat|fix|hotfix|refactor|perf|test|docs|chore|ci|infra)|claude)/[a-z0-9._-]+$'
 
 if [ "$branch" = "main" ] || [ "$branch" = "master" ]; then
-  echo "❌ Ne pushaj izravno na '$branch' — napravi granu i otvori pull request."
+  echo "❌ Don't push to '$branch' directly — make a branch and open a pull request."
   exit 1
 fi
 
 if ! echo "$branch" | grep -Eq "$pattern"; then
-  echo "❌ Neispravno ime grane: $branch"
-  echo "   Format: <tip>/<task-id>-<opis>"
-  echo "   Npr.:   feat/fe-033-rapid-numpad"
+  echo "❌ Invalid branch name: $branch"
+  echo "   Format:  <type>/<task-id>-<description>"
+  echo "   Example: feat/fe-033-rapid-numpad"
   exit 1
 fi
 
@@ -21,12 +22,12 @@ fi
 # they need Docker and take too long; their place is CI.
 for p in tests/AppTemplate.Domain.Tests tests/AppTemplate.Application.Tests; do
   [ -d "$p" ] || continue
-  echo "▶ Testovi: $p"
+  echo "▶ Tests: $p"
   if ! dotnet test "$p" --nologo -v q; then
-    echo "❌ Unit testovi padaju — push zaustavljen."
+    echo "❌ Unit tests fail — push stopped."
     exit 1
   fi
 done
 
-echo "✅ Provjere prošle."
+echo "✅ Checks passed."
 exit 0
