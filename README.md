@@ -22,8 +22,9 @@ powershell -ExecutionPolicy Bypass -File .\rename-template.ps1 -NewName Slicice
 # drops the script's own entry from the .slnx and lists any leftover "AppTemplate" it couldn't rewrite.
 
 # 3. Delete rename-template.ps1 (no longer needed in the new project), then commit.
-# 4. In CLAUDE.md: describe the product and link its design docs (Read first);
-#    in src/*.Domain/CLAUDE.md: the model. Settle the open questions in docs/decisions/README.md as they come up.
+# 4. In CLAUDE.md: describe the product and link its design docs (Read first); in docs/README.md: fill in the
+#    document map; in docs/implementation-plan.md: the first steps; in src/*.Domain/CLAUDE.md: the model.
+#    Settle the open questions in docs/decisions/README.md as they come up.
 #    Design docs written before the fork? Add an ADR saying this template's conventions win on *how* where the two
 #    disagree (the docs stay the truth for *what*), with the known differences listed, so every later conflict has
 #    one answer.
@@ -49,6 +50,10 @@ cd ../..
 
 # 3. Run (Development applies migrations on startup and serves /openapi/v1.json)
 dotnet run --project src/AppTemplate.Api
+
+# Production (ADR 0028, 0029): logs are JSON lines on the console; migrations are a deploy step — the same build
+# with Database__MigrateAndExit=true migrates and exits; forwarded headers are trusted from Proxy__KnownNetworks only;
+# set AllowedHosts to the real host.
 ```
 
 Integration tests start their own Postgres with Testcontainers — Docker must be running.
@@ -60,11 +65,11 @@ Integration tests start their own Postgres with Testcontainers — Docker must b
 | Area | What | Where |
 |---|---|---|
 | Building blocks | `Entity<TId>`, `AggregateRoot<TId>`, `Enumeration<TEnum>` (smart enum), `DomainException(code, message)` | `src/*.SharedKernel` |
-| Use cases | `Result` / `Result<T>` + `Error` (code + kind), `ICommandHandler`/`IQueryHandler`, validation decorators with error codes for commands and queries, `PagedList<T>` for lists that can grow, assembly-scanning `AddApplication()` (no mediator library) | `src/*.Application/Common` |
+| Use cases | `Result` / `Result<T>` + `Error` (code + kind), `ICommandHandler`/`IQueryHandler`, logging and validation decorators (name, duration and outcome in the log, never the input; error codes for the client) for commands and queries, `PagedList<T>` for lists that can grow, assembly-scanning `AddApplication()` (no mediator library) | `src/*.Application/Common` |
 | Persistence | `AppDbContext` (snake_case, UTC `DateTimeOffset`, smart-enum converter), `IUnitOfWork` that turns unique violations and concurrency conflicts into Application exceptions (and `DiscardChanges()` to retry), retrying Npgsql, design-time factory for migrations | `src/*.Infrastructure` |
-| HTTP | ProblemDetails with a `code` on every error (422 domain, 400 validation, 401/403/404/409, framework errors, 429), API versioning + built-in OpenAPI per version typed for a generated client, strict JSON (enums by name, instants with an offset, numbers as numbers), `/health/live` + `/health/ready` | `src/*.Api` |
-| Tests | Postgres fixture + `WebApplicationFactory` on the real DI setup (a fake clock, extra settings or an empty database on request), error-contract tests, DI tests that prove every handler is validated, architecture tests | `tests/` |
-| Decisions | 27 baseline ADRs + open questions (auth scheme, tenancy, hosting, idempotency, logging) | `docs/decisions/` |
+| HTTP | ProblemDetails with a `code` and the W3C `traceId` on every error (422 domain, 400 validation, 401/403/404/409, framework errors, 429), API versioning + built-in OpenAPI per version typed for a generated client, strict JSON (enums by name, instants with an offset, numbers as numbers), `/health/live` + `/health/ready`, forwarded headers from known proxies only, migrations as a deploy step, JSON logs in production | `src/*.Api` |
+| Tests | Postgres fixture + `WebApplicationFactory` on the real DI setup (a fake clock, extra settings or an empty database on request), error-contract tests, DI tests that prove every handler is logged and validated, architecture tests | `tests/` |
+| Decisions | 30 baseline ADRs + open questions (auth scheme, tenancy, hosting platform, account deletion, operator access, quota races) | `docs/decisions/` |
 | Claude Code | `CLAUDE.md` per layer and test project, project reviewer agent | `CLAUDE.md`, `.claude/agents/` |
 
 ---
@@ -85,7 +90,11 @@ Integration tests start their own Postgres with Testcontainers — Docker must b
 │  ├─ AppTemplate.Application.Tests/    unit (fake ports)
 │  ├─ AppTemplate.Integration.Tests/    Testcontainers Postgres + WebApplicationFactory
 │  └─ AppTemplate.Architecture.Tests/   layer boundaries (NetArchTest)
-├─ docs/decisions/              ADRs (one per decision) + open questions
+├─ docs/
+│  ├─ README.md                 documentation map: what to read, build order (placeholders to fill in)
+│  ├─ implementation-plan.md    the ordered steps, ticked off as they land
+│  ├─ ubiquitous-language.md    UI terms and the code names for them
+│  └─ decisions/                ADRs (one per decision) + open questions
 ├─ .claude/agents/              Claude Code agents (project-rules reviewer)
 ├─ web/                         Angular (coming later)
 ├─ .github/workflows/           CI

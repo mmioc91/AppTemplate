@@ -1,0 +1,13 @@
+# Gitleaks (secrets-scan.yml) runs with its default rules plus these exceptions: things that look like a secret to a
+# generic rule but are configuration keys named in the docs. Keep the list short and every entry explained.
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Configuration keys named in the docs and commands"
+# Matched against the whole line, not just the captured "secret" (the default), so a key can be named by its prefix.
+regexTarget = "line"
+regexes = [
+  # `--Database:MigrateAndExit=true` after `AppTemplate.Api` reads as an API key to the generic-api-key rule.
+  '''Database[:_]{1,2}MigrateAndExit''',
+]

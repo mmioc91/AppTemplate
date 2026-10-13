@@ -77,6 +77,8 @@ Don't flag anything the build already enforces (analyzers, `.editorconfig` error
   `CLAUDE.md` rule or a baseline ADR — needs one in the same change. Accepted ADRs are superseded, never rewritten;
   the index in `docs/decisions/README.md` is updated, and a settled open question is removed from its list.
 - Does a `CLAUDE.md` need updating because the change introduced a new convention or gotcha?
+- A completed step is ticked off in `docs/implementation-plan.md` in the same change; a change to an endpoint, a DTO
+  or an error code updates the project's contract doc (`docs/README.md` says which) in the same change.
 - Everything written into the repo is English.
 
 ## Output format
