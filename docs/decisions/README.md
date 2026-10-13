@@ -35,6 +35,7 @@ the code implements it and every choice that had to be made along the way.
 | 0024 | [New aggregates may be created in the transaction of the change they serve](0024-new-aggregates-created-with-the-change-they-serve.md) | Accepted | 2026-10-13 |
 | 0025 | [Single-value value objects are stored through value converters](0025-single-value-objects-stored-through-converters.md) | Accepted | 2026-10-13 |
 | 0026 | [Unauthorized is an error kind, and 429 has its own code](0026-unauthorized-kind-and-too-many-requests-code.md) | Accepted | 2026-10-13 |
+| 0027 | [Strict JSON, and an OpenAPI document fit for a generated client](0027-strict-json-and-openapi-for-a-generated-client.md) | Accepted | 2026-10-13 |
 
 ## Open questions
 

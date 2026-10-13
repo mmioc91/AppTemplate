@@ -40,7 +40,10 @@ tests and Api-level functional tests.
 - **Error-mapping tests don't need a server:** `Api/ProblemResponse` writes through the real ProblemDetails setup on a
   `DefaultHttpContext` and reads back the JSON.
 - **`ApiHostTests`** pins host-wide behavior (health, JSON options, OpenAPI document, framework error codes). Every new
-  endpoint gets a row pinning the statuses it declares in the OpenAPI document (ADR 0009).
+  endpoint gets a row pinning the statuses it declares in the OpenAPI document (ADR 0009). `OpenApiContractTests`
+  runs the rules in `OpenApiContract` over the whole live document for the generated client's sake (ADR 0027) — with
+  no endpoint yet it has nothing to find, so `OpenApiContractRulesTests` proves each rule on a hand-written document;
+  the first endpoint makes the live run real.
 - Slower than unit tests by nature — this is exactly why `.githooks/pre-push` intentionally skips this project and
   leaves it to CI.
 - `Program` (top-level statements in Api) and the `internal` Api/Infrastructure types are visible here via

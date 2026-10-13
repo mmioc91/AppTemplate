@@ -22,8 +22,13 @@ See root `CLAUDE.md` for cross-cutting rules.
   to a concurrent change.
 - **Options:** every Options class is bound here, in `Program.cs` (`AddOptions<T>().Bind(section).ValidateOnStart()`)
   — Application only registers defaults, so an unbound one silently ignores its configuration.
-- **JSON:** camelCase (Minimal API default — `ErrorResults` relies on it, a test guards it), enums by name only
-  (`JsonStringEnumConverter(allowIntegerValues: false)`).
+- **JSON (ADR 0027):** camelCase (Minimal API default — `ErrorResults` relies on it, a test guards it), enums by name
+  only (`JsonStringEnumConverter(allowIntegerValues: false)`), instants only with an offset (`StrictInstantConverter`:
+  `Z` or `±hh:mm`, anything else is 400 `MALFORMED_REQUEST` — System.Text.Json would otherwise read it in the server's
+  time zone; a test of a new instant field sends one with `Z` or `+02:00`), numbers only as JSON numbers
+  (`JsonNumberHandling.Strict`, so the schemas say `integer`, not `integer|string`). The converter covers bodies only:
+  an instant in a query string would bind in the server's time zone — bind it as a string and let the validator apply
+  the same rule, or keep instants out of query strings.
 - **Requests (ADR 0020):** a mandatory value-type field (enum, number, bool, date) is **nullable** in the `XxxRequest`
   and the command, validated `NotNull → REQUIRED` — otherwise a missing field silently binds to its default (an enum's
   first member, `0`, `false`).
@@ -33,7 +38,11 @@ See root `CLAUDE.md` for cross-cutting rules.
   typed client (e.g. NSwag) can be generated. Pin each endpoint's status list in `ApiHostTests` when you add it.
   `Location` only for a route that exists, by route name — never a hand-built URL. Add a UI package (Scalar) only if
   the project actually needs one. When CI needs the document, generate it at build time
-  (`Microsoft.Extensions.ApiDescription.Server`) rather than exposing it in production.
+  (`Microsoft.Extensions.ApiDescription.Server`) rather than exposing it in production. For the generated client
+  (ADR 0027): `ClientTypesTransformer` types instants and enums; query parameters are named in camelCase with
+  `[FromQuery(Name = "...")]` (otherwise the document uses the record's PascalCase names); a string query parameter
+  with fixed values lists them with `[QueryValues(...)]` — not `[AllowedValues]`, which makes the generator fail;
+  `OpenApiContractTests` walks the whole document and pins all of it.
 - **Startup:** migrations run on startup in Development only; HSTS outside Development.
 - **Health (ADR 0019):** `/health/live` has no checks (for restarts); `/health/ready` checks the database and pending
   migrations (for rotation and the deploy gate). Both anonymous, outside `/api/v1`.
