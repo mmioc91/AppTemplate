@@ -14,6 +14,8 @@ goes where is ADR 0010.
 - Cover what matters, not vanity coverage: happy path, each branch, boundary values, null/empty input, failure paths.
 - Every test must be able to go red — a test that can't fail is worse than no test. Mutation testing (Stryker, ADR
   0017) is how we check.
+- Stryker on part of a large file: `--mutate "**/Orders/Order.cs{start..end}"` takes **character offsets** into the
+  file, not line numbers — line numbers silently match nothing ("0 mutants will be tested").
 - Deterministic time: Domain receives timestamps as parameters; where a `TimeProvider` is involved use
   `FakeTimeProvider` (`Microsoft.Extensions.TimeProvider.Testing`) with a fixed instant — never the real clock. Tests
   must not depend on today's date.

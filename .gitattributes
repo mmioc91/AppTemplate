@@ -1,0 +1,9 @@
+# Git stores text files with LF whatever the committer has configured; each checkout keeps its own line endings
+# (CRLF on Windows with core.autocrlf=true). See docs/decisions/0021-git-stores-text-files-with-lf.md.
+* text=auto
+# Shell scripts run under bash on every OS: LF always, whatever core.autocrlf says, or bash trips over the CR.
+.githooks/* text eol=lf
+*.sh text eol=lf
+# Read by Linux tools in containers (Docker, Caddy): LF whatever the checkout.
+deploy/** text eol=lf
+.dockerignore text eol=lf

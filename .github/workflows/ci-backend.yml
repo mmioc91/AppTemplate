@@ -11,6 +11,7 @@ on:
       - 'src/**'
       - 'tests/**'
       - 'Directory.*.props'
+      - '.github/workflows/ci-backend.yml'
 
 permissions:
   contents: read
@@ -30,7 +31,7 @@ jobs:
           dotnet-version: '10.x'
 
       - name: Cache NuGet
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ~/.nuget/packages
           key: nuget-${{ hashFiles('**/*.csproj', 'Directory.Packages.props') }}
@@ -72,7 +73,7 @@ jobs:
           dotnet-version: '10.x'
 
       - name: Cache NuGet
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ~/.nuget/packages
           key: nuget-${{ hashFiles('**/*.csproj', 'Directory.Packages.props') }}
@@ -81,7 +82,21 @@ jobs:
       - name: Restore tools
         run: dotnet tool restore
 
+      # A pull request that rewrites most of a project can't be mutated within the job's 20 minutes, and a report-only
+      # check that times out reads as a failure. Past 40 changed files it says so and skips; Stryker then runs locally
+      # on the files that matter (tests/*/CLAUDE.md).
+      - name: Size of the change
+        id: size
+        run: |
+          files=$(git diff --name-only "origin/${{ github.base_ref }}...HEAD" -- "src/AppTemplate.${{ matrix.project }}")
+          changed=$(printf '%s\n' "$files" | grep -c '\.cs$' || true)
+          echo "changed=$changed" >> "$GITHUB_OUTPUT"
+          if [ "$changed" -gt 40 ]; then
+            echo "::notice title=Mutation testing skipped::$changed C# files of AppTemplate.${{ matrix.project }} changed - too many to mutate in CI; run Stryker locally with -m on the files that matter."
+          fi
+
       - name: Mutation testing (${{ matrix.project }} code changed in this PR)
+        if: fromJSON(steps.size.outputs.changed) <= 40
         working-directory: src/AppTemplate.${{ matrix.project }}
         run: dotnet tool run dotnet-stryker --since:origin/${{ github.base_ref }}
 
