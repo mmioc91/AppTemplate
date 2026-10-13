@@ -44,9 +44,9 @@ See root `CLAUDE.md` for cross-cutting rules.
   with fixed values lists them with `[QueryValues(...)]` — not `[AllowedValues]`, which makes the generator fail;
   `OpenApiContractTests` walks the whole document and pins all of it.
 - **Startup (ADR 0029):** migrations run on startup in Development only; `Database:MigrateAndExit=true` migrates and
-  exits (the deploy step, before the new version serves); `UseForwardedHeaders` runs first and trusts
-  `Proxy:KnownNetworks` only (loopback otherwise); HSTS outside Development; `AllowedHosts` is the real host in
-  production configuration, never `*`.
+  exits (the deploy step, before the new version serves; the key is `DependencyInjection.MigrateAndExitKey`);
+  `UseForwardedHeaders` runs first and trusts `Proxy:KnownNetworks` next to loopback, nothing else; HSTS outside
+  Development; `AllowedHosts` is the real host in production configuration, never `*`.
 - **Logs and trace ids (ADR 0028):** log through `ILogger` with `[LoggerMessage]`; the request's W3C trace id is in
   every entry's scope and in every ProblemDetails as `traceId` (`ProblemDetailsSetup`) — never invent another
   correlation id. Production logs are JSON lines (`appsettings.Production.json`). A use case's outcome is logged by its
@@ -63,7 +63,9 @@ See root `CLAUDE.md` for cross-cutting rules.
   is: the current user's id comes from the authenticated principal through an `ICurrentUser`-style port, **never**
   from the request body; prefer a fallback policy that requires authentication on every endpoint and mark the
   exceptions with `.AllowAnonymous()` (`/health/*` and OpenAPI already are). `UseNotFoundForUnmatchedRoutes()` already
-  runs before authorization, so a fallback policy keeps unknown routes at 404 instead of 401 (ADR 0018, 0029).
+  runs before authorization, so a fallback policy keeps unknown routes at 404 instead of 401 (ADR 0018, 0029) — but
+  only if `UseAuthentication()`/`UseAuthorization()` are called explicitly at the placeholder in `Program.cs`:
+  registered without the calls, `WebApplication` inserts them ahead of every user middleware and the 401 wins again.
 
 ## Tests
 See `tests/AppTemplate.Integration.Tests/CLAUDE.md`.

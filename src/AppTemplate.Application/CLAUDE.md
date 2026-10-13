@@ -3,8 +3,9 @@
 See root `CLAUDE.md` for cross-cutting rules.
 
 ## Rules
-- References **only Domain** (+ FluentValidation, Mapster). **No** EF Core/Npgsql/Dapper or ASP.NET Core types — if
-  a use case can't be tested with fake ports, infrastructure has leaked. Enforced at build time by
+- References **only Domain** (+ FluentValidation, Mapster, and `Microsoft.Extensions.Logging` for `ILogger<T>`,
+  `[LoggerMessage]` and `AddLogging()` only). **No** EF Core/Npgsql/Dapper or ASP.NET Core types — if a use case
+  can't be tested with fake ports, infrastructure has leaked. Enforced at build time by
   `tests/AppTemplate.Architecture.Tests`.
 - **Orchestrate, don't decide:** no business rules here (those live in Domain). Typical flow: load an aggregate
   through a repository port → call a domain method → persist via the port. An `if` checking a business rule in a
