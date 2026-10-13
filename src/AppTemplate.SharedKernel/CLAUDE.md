@@ -17,7 +17,9 @@ purity bar here is at least as strict as Domain's.
   raising here only once there's an actual dispatch mechanism in Infrastructure to receive them.
 - `Enumeration<TEnum>`: "smart enum" — a plain C# `enum` has no behavior; this lets each value carry methods
   (e.g. `PaymentStatus.Failed.CanRetry()`) and gives safe `FromValue`/`FromName`/`GetAll` lookups instead of
-  `Enum.Parse` (ADR 0005).
+  `Enum.Parse` (ADR 0005). Values and names must be unique — names case-insensitively, as `FromName` matches them
+  (values are stored by name). A duplicate throws on the type's first lookup (`TypeInitializationException`), so
+  every smart enum needs a test that calls `FromName` or `GetAll`.
 - `DomainException(code, message)`: thrown by Domain on an invariant breach. The code is mandatory — a stable
   `UPPER_SNAKE_CASE` string clients switch on; the message is English, for logs only (ADR 0004).
 

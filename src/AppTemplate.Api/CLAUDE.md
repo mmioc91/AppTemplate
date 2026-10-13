@@ -10,12 +10,15 @@ See root `CLAUDE.md` for cross-cutting rules.
   a `code`. An endpoint returns `error.ToProblem()` for a Result failure (its return type is
   `Results<…, ProblemHttpResult>`) and never builds ProblemDetails itself — Validation → **400** with `errors`
   (field → error codes; C# property paths like `Address.Street` become the JSON names the client sent,
-  `address.street`), NotFound → **404**, Conflict → **409**, Forbidden → **403**. `DomainExceptionHandler` turns a
+  `address.street`), Unauthorized → **401**, NotFound → **404**, Conflict → **409**, Forbidden → **403**.
+  `DomainExceptionHandler` turns a
   `DomainException` into **422** with its code; `BadRequestExceptionHandler` turns unreadable requests (malformed
   JSON — thrown, not answered, in Development) into their own status; every other ProblemDetails gets a `code` from
-  its status (`ProblemCodes`), and a library's code that isn't `UPPER_SNAKE_CASE` is replaced. Unexpected → 500
-  without details. No message ever reaches the client — no `detail`; messages go to the log. No `try/catch` in
-  endpoints.
+  its status (`ProblemCodes`, a 429 from a rate limiter included), and a library's code that isn't `UPPER_SNAKE_CASE`
+  is replaced. Unexpected → 500 without details. No message ever reaches the client — no `detail`; messages go to the
+  log. No `try/catch` in endpoints.
+- **Actions on an aggregate** (`POST …/{id}/archive`, ADR 0023) answer **204** from a `Result`, declare
+  401/403/404/409/422, repeat as a no-op once answered, and answer 409 `CONCURRENCY_CONFLICT` to a concurrent change.
 - **Options:** every Options class is bound here, in `Program.cs` (`AddOptions<T>().Bind(section).ValidateOnStart()`)
   — Application only registers defaults, so an unbound one silently ignores its configuration.
 - **JSON:** camelCase (Minimal API default — `ErrorResults` relies on it, a test guards it), enums by name only
@@ -37,7 +40,8 @@ See root `CLAUDE.md` for cross-cutting rules.
   (`v1.MapGroup("/orders")`) in an `<Area>/<Area>Endpoints.cs` extension, with `WithTags` (one client service per tag)
   and `WithName` per endpoint.
 - **DTOs:** `XxxRequest` (input), `XxxResponse` (single result), `XxxListItem` (list row); flat, shaped for the
-  screen; never a serialized aggregate. Lists that can grow return `{ items, total, page, pageSize }`.
+  screen; never a serialized aggregate. Lists that can grow return `PagedList<T>` as `{ items, total, page, pageSize }`
+  (ADR 0022); `page`/`pageSize` bind through nullable query parameters and are validated in Application.
 - **Auth:** not wired yet — the scheme (cookie vs JWT) is an open question in `docs/decisions/README.md`. Whichever it
   is: the current user's id comes from the authenticated principal through an `ICurrentUser`-style port, **never**
   from the request body; prefer a fallback policy that requires authentication on every endpoint and mark the
