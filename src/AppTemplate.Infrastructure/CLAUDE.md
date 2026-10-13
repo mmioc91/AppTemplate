@@ -12,12 +12,15 @@ See root `CLAUDE.md` for cross-cutting rules.
   `EFCore.NamingConventions` handles snake_case column/table names for Postgres — don't hand-name them, and don't
   hand-name indexes or constraints either (no `HasDatabaseName`); use `jsonb` where a document fits better than a
   normalized table; Fluent API (`IEntityTypeConfiguration<>` in `Persistence/Configurations/`), not attributes on
-  entities.
+  entities. A value object with a single value (`Slug`) is stored as that value through a converter registered in
+  `ConfigureConventions`, like the IDs, and read back through its factory, so it can carry an index and be compared in
+  queries (ADR 0025).
 - **Aggregate boundaries in EF:** navigations *within* an aggregate; cross-aggregate references stay a scalar
   **Id only**, no navigation property, but with a database foreign key (`ON DELETE RESTRICT` unless an ADR says
   otherwise). Child entities are owned collections (`OwnsMany`) so they load and save with their root.
-- **Value objects are complex types** (`ComplexProperty`), never owned types: owned types have identity, so a shared
-  instance (a static default, one value on two rows) is saved on one owner and lost on the rest (ADR 0016). EF has
+- **Value objects with two or more values are complex types** (`ComplexProperty`; a single value goes through a
+  converter, ADR 0025), never owned types: owned types have identity, so a shared instance (a static default, one
+  value on two rows) is saved on one owner and lost on the rest (ADR 0016). EF has
   **no complex types on owned entities** (`OwnedNavigationBuilder` lacks `ComplexProperty`), so a value object on a
   child entity goes through a value converter instead — one column, or one `jsonb` document for several values.
 - **Gotcha — get-only properties:** EF doesn't map `{ get; }` properties by convention, and Domain uses them a lot.
@@ -33,8 +36,10 @@ See root `CLAUDE.md` for cross-cutting rules.
   when the root's own row is written: an aggregate method that changes only child rows must still touch the root
   (e.g. set `UpdatedAt`), or the concurrency check never runs.
 - **Read-stores (queries):** `.AsNoTracking()`, project to DTOs with `.Select()`, paginate (`Skip`/`Take` + a
-  stable `OrderBy`), prefer `AnyAsync()` over `CountAsync() > 0`, watch for N+1. Load aggregates whole via
-  repositories with the needed `Include`s.
+  stable `OrderBy` with the id as the tie breaker, ADR 0022), prefer `AnyAsync()` over `CountAsync() > 0`, watch for
+  N+1. Load aggregates whole via repositories with the needed `Include`s; one with several owned collections loads
+  with `AsSplitQuery()` (one joined query returns every combination of them) — `CommandCounter` in Integration.Tests
+  counts the statements a load sends.
 - **No `ExecuteUpdate`/`ExecuteDelete` on aggregate roots** — they bypass domain invariants and the concurrency
   check; changes go through the aggregate. Bulk statements only in system maintenance paths, and only with an ADR.
 - **No `AddDbContextPool`:** a context that holds per-request state (a tenant filter, the current user) would leak it
@@ -43,7 +48,11 @@ See root `CLAUDE.md` for cross-cutting rules.
 - **Unit of work:** `IUnitOfWork.SaveChangesAsync` translates the expected outcomes: a Postgres unique violation
   (SQLSTATE `23505`) becomes `UniqueConstraintViolationException`, `DbUpdateConcurrencyException` becomes
   `ConcurrencyConflictException` (ADR 0013). Cover both with integration tests using real conflicts once the first
-  aggregate exists. Anything else (e.g. a foreign-key violation) is a bug and surfaces untranslated (500).
+  aggregate exists — and that `DiscardChanges()` lets the same scope reload and save again after one. Anything else
+  (e.g. a foreign-key violation) is a bug and surfaces untranslated (500).
+  `DiscardChanges()` (`ChangeTracker.Clear()`) lets a system path reload and retry after a conflict. Infrastructure
+  code that saves its own rows outside the unit of work (an identity service, a worker) asks
+  `DbUpdateExceptions.IsUniqueViolation()` and checks for its own row before calling it a duplicate.
 - **Retrying execution strategy** (`EnableRetryOnFailure`): a retried commit can hit a unique index with the row it
   already saved — use cases check "is it my own row?" before calling it a duplicate (ADR 0013). An explicit
   transaction must run inside `Database.CreateExecutionStrategy().ExecuteAsync(...)`, or EF throws. Dapper calls are

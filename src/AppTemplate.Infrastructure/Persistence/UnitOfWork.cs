@@ -25,4 +25,6 @@ internal sealed class UnitOfWork(AppDbContext db) : IUnitOfWork
             throw new UniqueConstraintViolationException(postgres.ConstraintName ?? "unknown", exception);
         }
     }
+
+    public void DiscardChanges() => db.ChangeTracker.Clear();
 }

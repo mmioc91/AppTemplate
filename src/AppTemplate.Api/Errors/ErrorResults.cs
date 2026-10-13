@@ -26,6 +26,7 @@ internal static class ErrorResults
 
         (int status, string title) = error.Kind switch
         {
+            ErrorKind.Unauthorized => (StatusCodes.Status401Unauthorized, "Authentication failed."),
             ErrorKind.NotFound => (StatusCodes.Status404NotFound, "The resource was not found."),
             ErrorKind.Conflict => (StatusCodes.Status409Conflict, "The request conflicts with the current state."),
             ErrorKind.Forbidden => (StatusCodes.Status403Forbidden, "The request is not allowed."),

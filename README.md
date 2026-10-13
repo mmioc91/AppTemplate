@@ -60,11 +60,11 @@ Integration tests start their own Postgres with Testcontainers — Docker must b
 | Area | What | Where |
 |---|---|---|
 | Building blocks | `Entity<TId>`, `AggregateRoot<TId>`, `Enumeration<TEnum>` (smart enum), `DomainException(code, message)` | `src/*.SharedKernel` |
-| Use cases | `Result` / `Result<T>` + `Error` (code + kind), `ICommandHandler`/`IQueryHandler`, validation decorator with error codes, assembly-scanning `AddApplication()` (no mediator library) | `src/*.Application/Common` |
-| Persistence | `AppDbContext` (snake_case, UTC `DateTimeOffset`, smart-enum converter), `IUnitOfWork` that turns unique violations and concurrency conflicts into Application exceptions, retrying Npgsql, design-time factory for migrations | `src/*.Infrastructure` |
-| HTTP | ProblemDetails with a `code` on every error (422 domain, 400 validation, 404/409/403, framework errors), API versioning + built-in OpenAPI per version, JSON enums by name, `/health/live` + `/health/ready` | `src/*.Api` |
-| Tests | Postgres fixture + `WebApplicationFactory` on the real DI setup, error-contract tests, DI tests that prove every handler is validated, architecture tests | `tests/` |
-| Decisions | 21 baseline ADRs + open questions (auth scheme, tenancy, hosting, idempotency, logging) | `docs/decisions/` |
+| Use cases | `Result` / `Result<T>` + `Error` (code + kind), `ICommandHandler`/`IQueryHandler`, validation decorators with error codes for commands and queries, `PagedList<T>` for lists that can grow, assembly-scanning `AddApplication()` (no mediator library) | `src/*.Application/Common` |
+| Persistence | `AppDbContext` (snake_case, UTC `DateTimeOffset`, smart-enum converter), `IUnitOfWork` that turns unique violations and concurrency conflicts into Application exceptions (and `DiscardChanges()` to retry), retrying Npgsql, design-time factory for migrations | `src/*.Infrastructure` |
+| HTTP | ProblemDetails with a `code` on every error (422 domain, 400 validation, 401/403/404/409, framework errors, 429), API versioning + built-in OpenAPI per version, JSON enums by name, `/health/live` + `/health/ready` | `src/*.Api` |
+| Tests | Postgres fixture + `WebApplicationFactory` on the real DI setup (a fake clock, extra settings or an empty database on request), error-contract tests, DI tests that prove every handler is validated, architecture tests | `tests/` |
+| Decisions | 26 baseline ADRs + open questions (auth scheme, tenancy, hosting, idempotency, logging) | `docs/decisions/` |
 | Claude Code | `CLAUDE.md` per layer and test project, project reviewer agent | `CLAUDE.md`, `.claude/agents/` |
 
 ---

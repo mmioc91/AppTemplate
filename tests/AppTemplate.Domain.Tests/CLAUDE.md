@@ -10,7 +10,8 @@ for the rules this project tests.
   invariant), not incidental implementation detail. Every invariant gets a test for its `DomainException` path,
   asserting the exception's `Code` (e.g. `exception.Code.ShouldBe(OrderErrors.AlreadyShipped)`), never its message
   text.
-- Smart enum values with behavior (`IsTerminal`, `DefaultDays`, …) are domain rules too: test every value.
+- Smart enum values with behavior (`IsTerminal`, `DefaultDays`, …) are domain rules too: test every value, and let
+  one test call `FromName` or `GetAll` — a duplicate value or name fails there, on the type's first lookup.
 - Folders mirror Domain's aggregate folders (`Orders/OrderTests.cs`).
 - SharedKernel has no test project: its building blocks (`Entity<TId>` equality, `Enumeration<TEnum>` lookups,
   `DomainException`) are tested here, at the project root (`EntityTests`, `EnumerationTests`,

@@ -30,6 +30,11 @@ the code implements it and every choice that had to be made along the way.
 | 0019 | [Separate liveness and readiness health checks](0019-liveness-and-readiness-health-checks.md) | Accepted | 2026-09-29 |
 | 0020 | [Missing value-type fields are REQUIRED, not defaults](0020-missing-value-fields-are-required.md) | Accepted | 2026-09-29 |
 | 0021 | [Git stores text files with LF](0021-git-stores-text-files-with-lf.md) | Accepted | 2026-10-13 |
+| 0022 | [Lists that can grow are paged, and queries are validated like commands](0022-lists-that-can-grow-are-paged.md) | Accepted | 2026-10-13 |
+| 0023 | [Action endpoints answer 204, repeat as a no-op and answer 409 to a concurrent change](0023-action-endpoints-answer-204-and-409-on-concurrent-changes.md) | Accepted | 2026-10-13 |
+| 0024 | [New aggregates may be created in the transaction of the change they serve](0024-new-aggregates-created-with-the-change-they-serve.md) | Accepted | 2026-10-13 |
+| 0025 | [Single-value value objects are stored through value converters](0025-single-value-objects-stored-through-converters.md) | Accepted | 2026-10-13 |
+| 0026 | [Unauthorized is an error kind, and 429 has its own code](0026-unauthorized-kind-and-too-many-requests-code.md) | Accepted | 2026-10-13 |
 
 ## Open questions
 

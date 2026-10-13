@@ -3,8 +3,10 @@ using System.Text.Json;
 using AppTemplate.Api.Errors;
 using AppTemplate.Api.Health;
 using AppTemplate.Integration.Tests.Persistence;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
+using Microsoft.Extensions.Time.Testing;
 using Shouldly;
 using HttpJsonOptions = Microsoft.AspNetCore.Http.Json.JsonOptions;
 
@@ -34,6 +36,33 @@ public sealed class ApiHostTests(PostgresFixture postgres)
         // Assert
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
         (await response.Content.ReadAsStringAsync()).ShouldBe("Healthy");
+    }
+
+    [Fact]
+    public async Task Factory_WithATimeProvider_ReplacesTheHostsClock()
+    {
+        // Arrange: the factory registers the clock after Program.cs, so it beats AddApplication's TryAddSingleton.
+        FakeTimeProvider fake = new();
+        await using ApiFactory factory = new(postgres, fake);
+
+        // Act
+        TimeProvider time = factory.Services.GetRequiredService<TimeProvider>();
+
+        // Assert
+        time.ShouldBeSameAs(fake);
+    }
+
+    [Fact]
+    public async Task Factory_WithSettings_MakesThemConfiguration()
+    {
+        // Arrange
+        await using ApiFactory factory = new(postgres, settings: new Dictionary<string, string> { ["Probe:Key"] = "value" });
+
+        // Act
+        string? value = factory.Services.GetRequiredService<IConfiguration>()["Probe:Key"];
+
+        // Assert
+        value.ShouldBe("value");
     }
 
     [Theory]

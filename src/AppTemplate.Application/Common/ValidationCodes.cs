@@ -9,5 +9,6 @@ public static class ValidationCodes
     public const string TooLong = "TOO_LONG";
     public const string Invalid = "INVALID";
     public const string NotPositive = "NOT_POSITIVE";
+    public const string TooLarge = "TOO_LARGE"; // a number over its maximum; TooLong is for text
     public const string NotAllowed = "NOT_ALLOWED";
 }

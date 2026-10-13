@@ -38,8 +38,8 @@ Don't flag anything the build already enforces (analyzers, `.editorconfig` error
 
 ### Errors
 - Every error a client can see has a stable `UPPER_SNAKE_CASE` code; codes are never renamed or reused. Expected
-  failures are `Result`s with the right kind (Validation 400 / NotFound 404 / Conflict 409 / Forbidden 403),
-  invariants are `DomainException` (422) and only come from Domain.
+  failures are `Result`s with the right kind (Validation 400 / Unauthorized 401 / Forbidden 403 / NotFound 404 /
+  Conflict 409), invariants are `DomainException` (422) and only come from Domain.
 - Validators set `.WithErrorCode(ValidationCodes.X)`; mandatory value-type fields are nullable with `NotNull → REQUIRED`.
 - Endpoints return `error.ToProblem()` and never build ProblemDetails or put a message in the response.
 - No PII or secrets in logs, exception messages or ProblemDetails.

@@ -29,7 +29,9 @@ See root `CLAUDE.md` for cross-cutting rules that also apply here.
   entities, value objects, IDs, enums and its `<Aggregate>Errors` class
   (`docs/decisions/0006-one-type-per-file-folders-per-aggregate.md`).
 - **Aggregates reference other aggregates by Id only** — no navigation property across aggregate boundaries.
-  Navigation is fine *within* an aggregate. One transaction changes one aggregate.
+  Navigation is fine *within* an aggregate. One transaction changes one existing aggregate; it may create new ones
+  that exist only for that change (ADR 0024). Another aggregate's state a rule needs is passed into the method as a
+  value.
 - **Strongly-typed IDs** (`readonly record struct OrderId(Guid Value)`) instead of raw `Guid`/`int` (ADR 0003).
   Domain receives IDs as parameters and never creates them (ADR 0002).
 - **Invariants live only here.** FluentValidation in Application checks input shape (non-empty, format, range) and

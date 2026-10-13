@@ -7,4 +7,9 @@ namespace AppTemplate.Application.Abstractions;
 public interface IUnitOfWork
 {
     Task SaveChangesAsync(CancellationToken cancellationToken);
+
+    // Forgets every loaded and changed aggregate in the scope, so the next load reads the database again — for a
+    // system path that retries after a ConcurrencyConflictException or UniqueConstraintViolationException (ADR 0013).
+    // Anything else tracked in the scope is dropped too.
+    void DiscardChanges();
 }

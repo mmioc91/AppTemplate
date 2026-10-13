@@ -3,7 +3,8 @@ using Shouldly;
 
 namespace AppTemplate.Domain.Tests;
 
-// Enumeration<TEnum> lives in SharedKernel, which has no test project of its own; every smart enum relies on it.
+// Enumeration<TEnum> lives in SharedKernel, which has no test project of its own; every smart enum and the EF
+// converter (stored by Name, ADR 0005) rely on these lookups.
 public class EnumerationTests
 {
     [Fact]
@@ -39,18 +40,22 @@ public class EnumerationTests
         size.ShouldBeSameAs(Size.Large);
     }
 
-    [Fact]
-    public void FromName_UnknownName_ReturnsNull()
+    // A lookup miss, not an error: callers map null to their own error (e.g. the validator's INVALID).
+    [Theory]
+    [InlineData("Huge")]
+    [InlineData("")]
+    [InlineData(null)]
+    public void FromName_NoMatch_ReturnsNull(string? name)
     {
         // Act
-        var size = Size.FromName("Huge");
+        var size = Size.FromName(name);
 
         // Assert
         size.ShouldBeNull();
     }
 
     [Fact]
-    public void GetAll_ReturnsEveryDeclaredValue()
+    public void GetAll_ReturnsEveryDeclaredValueOnce()
     {
         // Act
         IReadOnlyCollection<Size> all = Size.GetAll();
@@ -100,6 +105,40 @@ public class EnumerationTests
         Size.Large.ToString().ShouldBe("Large");
     }
 
+    // Each broken enum is its own type: the runtime caches a failed type initialization, so one type per test.
+    [Fact]
+    public void FirstLookup_DuplicateName_ThrowsTypeInitializationException()
+    {
+        // Act
+        TypeInitializationException exception =
+            Should.Throw<TypeInitializationException>(() => DuplicateName.GetAll());
+
+        // Assert
+        exception.InnerException.ShouldBeOfType<InvalidOperationException>();
+    }
+
+    [Fact]
+    public void FirstLookup_NamesDifferingOnlyInCase_ThrowsTypeInitializationException()
+    {
+        // Act
+        TypeInitializationException exception =
+            Should.Throw<TypeInitializationException>(() => DuplicateNameIgnoringCase.GetAll());
+
+        // Assert
+        exception.InnerException.ShouldBeOfType<InvalidOperationException>();
+    }
+
+    [Fact]
+    public void FirstLookup_DuplicateValue_ThrowsTypeInitializationException()
+    {
+        // Act
+        TypeInitializationException exception =
+            Should.Throw<TypeInitializationException>(() => DuplicateValue.GetAll());
+
+        // Assert
+        exception.InnerException.ShouldBeOfType<InvalidOperationException>();
+    }
+
     private sealed class Size(int value, string name) : Enumeration<Size>(value, name)
     {
         public static readonly Size Small = new(1, nameof(Small));
@@ -109,5 +148,24 @@ public class EnumerationTests
     private sealed class Color(int value, string name) : Enumeration<Color>(value, name)
     {
         public static readonly Color Red = new(1, nameof(Red));
+    }
+
+    private sealed class DuplicateName(int value, string name) : Enumeration<DuplicateName>(value, name)
+    {
+        public static readonly DuplicateName First = new(1, "Same");
+        public static readonly DuplicateName Second = new(2, "Same");
+    }
+
+    private sealed class DuplicateNameIgnoringCase(int value, string name)
+        : Enumeration<DuplicateNameIgnoringCase>(value, name)
+    {
+        public static readonly DuplicateNameIgnoringCase First = new(1, "Same");
+        public static readonly DuplicateNameIgnoringCase Second = new(2, "SAME");
+    }
+
+    private sealed class DuplicateValue(int value, string name) : Enumeration<DuplicateValue>(value, name)
+    {
+        public static readonly DuplicateValue First = new(1, nameof(First));
+        public static readonly DuplicateValue Second = new(1, nameof(Second));
     }
 }

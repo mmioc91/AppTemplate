@@ -10,7 +10,7 @@ public sealed class ValidationDecorator<TCommand, TResult>(
 {
     public async Task<Result<TResult>> HandleAsync(TCommand command, CancellationToken cancellationToken)
     {
-        Error? error = await CommandValidation.ValidateAsync(command, validators, cancellationToken);
+        Error? error = await InputValidation.ValidateAsync(command, validators, cancellationToken);
 
         return error is null ? await inner.HandleAsync(command, cancellationToken) : error;
     }
