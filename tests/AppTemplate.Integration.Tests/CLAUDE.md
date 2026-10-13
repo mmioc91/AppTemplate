@@ -33,8 +33,8 @@ tests and Api-level functional tests.
   configuration (`builder.UseSetting("ConnectionStrings:Db", …)`), so the real `AddInfrastructure` registers
   `AppDbContext` — use `Api/ApiFactory` (Development environment, so startup migrations and OpenAPI run as locally;
   `new ApiFactory(connectionString, environment)` for another database or environment; `new ApiFactory(postgres, time)`
-  with a `FakeTimeProvider` replaces the clock for the whole host; `new ApiFactory(postgres, settings)` adds
-  configuration the way an environment variable would). Never
+  with a `FakeTimeProvider` replaces the clock for the whole host; `new ApiFactory(postgres, settings: …)` adds
+  configuration as command-line settings, above appsettings files and environment variables). Never
   `RemoveAll<DbContextOptions<AppDbContext>>()` and re-register it — that drops `UseSnakeCaseNamingConvention()` and
   the rest of the Infrastructure setup, so the tests would run against a different model than production.
 - **Error-mapping tests don't need a server:** `Api/ProblemResponse` writes through the real ProblemDetails setup on a
