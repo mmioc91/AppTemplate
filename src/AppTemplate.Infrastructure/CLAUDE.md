@@ -66,8 +66,8 @@ See root `CLAUDE.md` for cross-cutting rules.
   (`AddDbContextCheck`) and pending migrations (`PendingMigrationsHealthCheck`).
 - **Migrations** live in `Persistence/Migrations/` and are created with the design-time factory (root `CLAUDE.md` →
   Commands). Applied on startup in Development only (`MigrateDatabaseAsync`); in production as a separate deploy
-  step. Never edit a migration that has been pushed — add a new one. A model change and its migration go in the same
-  commit.
+  step — the Api started with `Database:MigrateAndExit=true` migrates and exits (ADR 0029). Never edit a migration
+  that has been pushed — add a new one. A model change and its migration go in the same commit.
 - Register all Infrastructure services/ports from `AddInfrastructure(...)`, called once from `Program.cs`. A missing
   connection string fails there with a message naming the setting.
 

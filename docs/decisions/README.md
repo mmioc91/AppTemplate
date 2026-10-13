@@ -36,6 +36,9 @@ the code implements it and every choice that had to be made along the way.
 | 0025 | [Single-value value objects are stored through value converters](0025-single-value-objects-stored-through-converters.md) | Accepted | 2026-10-13 |
 | 0026 | [Unauthorized is an error kind, and 429 has its own code](0026-unauthorized-kind-and-too-many-requests-code.md) | Accepted | 2026-10-13 |
 | 0027 | [Strict JSON, and an OpenAPI document fit for a generated client](0027-strict-json-and-openapi-for-a-generated-client.md) | Accepted | 2026-10-13 |
+| 0028 | [Logs are the built-in logging, JSON lines in production, tied to errors by the W3C trace id](0028-logging-and-the-trace-id.md) | Accepted | 2026-10-13 |
+| 0029 | [Hosting: one origin behind a reverse proxy, migrations as a deploy step](0029-hosting-behind-a-proxy-with-migrations-as-a-deploy-step.md) | Accepted | 2026-10-13 |
+| 0030 | [No Idempotency-Key for creates until a client retries them automatically](0030-no-idempotency-key-until-a-client-retries-creates.md) | Accepted | 2026-10-13 |
 
 ## Open questions
 
@@ -43,23 +46,39 @@ Not decided yet. When one is settled, it becomes a new ADR and is removed from t
 
 - **Authentication scheme: cookie or JWT?** Decide with the first project that has users. An SPA served from the same
   origin as the Api is simplest with ASP.NET Identity + an httpOnly `__Host-` cookie (`SameSite=Lax`, JSON-only bodies
-  as CSRF protection; no token storage in the browser); a mobile app or a third-party API client needs bearer tokens
-  (JWT or Identity's bearer endpoints). Either way: the user's id comes from the authenticated principal through an
-  `ICurrentUser` port, never from the request; a fallback policy requires authentication everywhere and exceptions are
-  marked `.AllowAnonymous()`; wrong password, unknown user and lockout answer the same 401 code.
+  as CSRF protection; no token storage in the browser); a mobile app, a live hub on another origin or a third-party
+  API client needs bearer tokens (JWT with a rotating, hashed refresh token). Both have been built from this
+  template and work. Either way: the user's id comes from the authenticated principal through an `ICurrentUser`
+  port, never from the request; a fallback policy requires authentication everywhere and exceptions are marked
+  `.AllowAnonymous()` (`UseNotFoundForUnmatchedRoutes` keeps unknown routes at 404); wrong password, unknown user and
+  lockout answer the same 401 code ([0026](0026-unauthorized-kind-and-too-many-requests-code.md)); every refusal
+  costs one password hash so timing reveals nothing; passwords have a minimum length and no composition rules;
+  Identity's tables live in `AppDbContext`, renamed to snake_case, with a unique index on the normalized e-mail; a
+  host test walks the endpoint table and fails if an unmarked endpoint lets an anonymous call through. With cookies,
+  Data Protection keys go to the database and need encrypting at rest before production.
 - **Multi-tenancy.** If the product has tenants (workspaces, organizations): every aggregate root carries the tenant
-  id; isolation is a *named* global EF query filter fed by an `ITenantContext` port the Api fills from the signed-in
-  user — never a tenant id from the request, never a hand-written `WHERE TenantId = …`; `IgnoreQueryFilters()` only
-  in system paths without a user; every use case gets a tenant-boundary integration test.
-- **Hosting.** Settles with it: forwarded headers behind the platform's proxy (`UseForwardedHeaders` with the proxy's
-  known networks — a loose setup lets clients spoof their IP and scheme), `AllowedHosts` set to the real domain in
-  `appsettings.Production.json` instead of `*`, which probe uses `/health/live` vs `/health/ready`
-  ([0019](0019-liveness-and-readiness-health-checks.md)), and how migrations run as a deploy step.
-- **Retried POSTs (idempotency).** A client that re-sends a create request because it never got the first answer gets
-  409 for its own resource. The usual fix is an `Idempotency-Key` header (store key + response for a while; the same
-  key returns the same response). Decide before a client retries requests automatically.
-- **Logging and correlation id.** Structured logging (e.g. Serilog) and a correlation id that ties a 4xx/5xx response
-  to its log entries ([0018](0018-http-error-contract.md)).
+  id; isolation is a *named* global EF query filter fed by a scoped `ITenantContext` the Api fills on every request
+  from the signed-in user's membership — never a tenant id from the request or a claim, never a hand-written
+  `WHERE TenantId = …`; an id of another aggregate taken from a request is confirmed global or in the current tenant
+  before it is stored; only system paths without a user (webhooks, jobs) bypass the filter, through their own
+  `ISystem…` ports that ignore just the named filter, which an architecture test limits to named handlers; an endpoint
+  that must work without a tenant (logout) says so with an attribute; every use case gets a tenant-boundary
+  integration test (two users, neither sees the other's data). A product without tenants scopes loads by owner
+  instead (`GetAsync(id, owner)`), and another owner's data answers 404, never 403.
+- **Hosting platform.** The code side is settled ([0029](0029-hosting-behind-a-proxy-with-migrations-as-a-deploy-step.md));
+  what remains is where it runs: one Linux VM with Docker Compose and Caddy (proven), or a managed platform. It
+  arrives with the `deploy/` files and their own ADR, together with the security headers and Content-Security-Policy
+  the proxy sends.
+- **Account deletion and GDPR erasure.** A real delete, not a soft one — erasure means the personal data is gone — as
+  an explicit flow that deletes the user's data, their tenant (if they are its last owner) and the account in order;
+  the database refuses shortcuts (`ON DELETE RESTRICT`). Open: what happens to a shared tenant when a non-last owner
+  leaves.
+- **Operator access.** Admin tools (a job dashboard, platform settings) stay in Development until there is an operator
+  role or a separate, network-restricted host: the product's users are customers, and such tools show everyone's data.
+- **Count-then-insert limits.** A quota that counts rows and then inserts can be exceeded by one under concurrent
+  requests. Options: a per-tenant advisory lock or a serializable transaction around count + insert (inside the
+  retrying execution strategy, [0013](0013-save-outcomes-unique-violations-and-conflicts.md)), or accept a soft limit.
+  Settle before the first limit is enforced.
 
 ## Template
 
