@@ -1,8 +1,11 @@
 using System.Net;
 using System.Text.Json;
+using AppTemplate.Api;
 using AppTemplate.Api.Errors;
 using AppTemplate.Api.Health;
 using AppTemplate.Integration.Tests.Persistence;
+using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
@@ -63,6 +66,37 @@ public sealed class ApiHostTests(PostgresFixture postgres)
 
         // Assert
         value.ShouldBe("value");
+    }
+
+    [Fact]
+    public async Task Problem_RequestWithATraceparent_CarriesThatTraceId()
+    {
+        // Arrange: a caller (a proxy, the web app) that started the trace (ADR 0028).
+        await using ApiFactory factory = new(postgres);
+        using HttpClient client = factory.CreateClient();
+        using HttpRequestMessage request = new(HttpMethod.Get, "/api/v1/nothing-here");
+        request.Headers.Add("traceparent", "00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01");
+
+        // Act
+        HttpResponseMessage response = await client.SendAsync(request);
+
+        // Assert
+        using var body = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        body.RootElement.GetProperty(ProblemDetailsSetup.TraceIdKey).GetString().ShouldBe("4bf92f3577b34da6a3ce929d0e0e4736");
+    }
+
+    [Fact]
+    public async Task ForwardedHeaders_KnownNetworksConfigured_TrustsOnlyThoseProxies()
+    {
+        // Arrange: the reverse proxy's network (ADR 0029).
+        await using ApiFactory factory = new(postgres, settings: new Dictionary<string, string> { [ProxySetup.KnownNetworksKey] = "172.20.0.0/16, 10.0.0.0/8" });
+
+        // Act
+        ForwardedHeadersOptions options = factory.Services.GetRequiredService<IOptions<ForwardedHeadersOptions>>().Value;
+
+        // Assert
+        options.ForwardedHeaders.ShouldBe(ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto);
+        options.KnownIPNetworks.Select(network => network.ToString()).ShouldBe(["127.0.0.0/8", "172.20.0.0/16", "10.0.0.0/8"], ignoreOrder: true);
     }
 
     [Theory]
