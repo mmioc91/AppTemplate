@@ -15,9 +15,9 @@ public static class DependencyInjection
         return services.AddUseCases(typeof(DependencyInjection).Assembly);
     }
 
-    // Registers every validator and every handler in the assembly. For commands only the decorated contract is
-    // registered — the concrete handler is created inside the factory — so nothing can resolve a handler without its
-    // validation. Internal so tests can register their own sample use cases the same way.
+    // Registers every validator and every handler in the assembly. Only the decorated contract is registered — the
+    // concrete handler is created inside the factory — so nothing can resolve a handler without its validation.
+    // Internal so tests can register their own sample use cases the same way.
     internal static IServiceCollection AddUseCases(this IServiceCollection services, Assembly assembly)
     {
         services.AddValidatorsFromAssembly(assembly, includeInternalTypes: true);
@@ -34,10 +34,10 @@ public static class DependencyInjection
                 AddDecorated(services, contract, typeof(ValidationDecorator<,>), handler);
             }
 
-            // Queries are registered by contract without a decorator until a query has input to validate.
+            // A query without a validator passes through its decorator unchanged (ADR 0022).
             foreach (Type contract in handler.GetInterfaces().Where(IsHandler(typeof(IQueryHandler<,>))))
             {
-                services.AddScoped(contract, handler);
+                AddDecorated(services, contract, typeof(QueryValidationDecorator<,>), handler);
             }
         }
 

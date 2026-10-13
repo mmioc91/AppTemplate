@@ -18,6 +18,9 @@ public class DependencyInjectionTests
     // Every query handler contract, likewise.
     public static TheoryData<Type> RegisteredQueryContracts => new(HandlerContracts(typeof(IQueryHandler<,>)));
 
+    // Every concrete handler in Application and in this assembly's samples, found by scanning like AddUseCases does.
+    public static TheoryData<Type> ConcreteHandlerTypes => new(ConcreteHandlers());
+
     // Factory registrations escape ValidateOnBuild, so resolve each one: a missing dependency fails here, not in production.
     [Theory]
     [MemberData(nameof(RegisteredCommandContracts))]
@@ -36,7 +39,7 @@ public class DependencyInjectionTests
 
     [Theory]
     [MemberData(nameof(RegisteredQueryContracts))]
-    public void AddApplication_EveryRegisteredQueryHandlerResolves(Type contract)
+    public void AddApplication_EveryRegisteredQueryHandlerResolvesWrappedInValidation(Type contract)
     {
         // Arrange
         using ServiceProvider provider = BuildProvider();
@@ -46,7 +49,7 @@ public class DependencyInjectionTests
         object handler = scope.ServiceProvider.GetRequiredService(contract);
 
         // Assert
-        handler.ShouldBeAssignableTo(contract);
+        handler.GetType().GetGenericTypeDefinition().ShouldBe(typeof(QueryValidationDecorator<,>));
     }
 
     [Fact]
@@ -62,10 +65,22 @@ public class DependencyInjectionTests
         queries.ShouldContain(typeof(IQueryHandler<GetSample, string>));
     }
 
+    [Fact]
+    public void ConcreteHandlerScan_FindsEveryKindOfSampleHandlerButNoDecorator()
+    {
+        // Act
+        Type[] handlers = ConcreteHandlers();
+
+        // Assert: guards the scan, like the test above.
+        handlers.ShouldContain(typeof(CreateSampleHandler));
+        handlers.ShouldContain(typeof(RenameSampleHandler));
+        handlers.ShouldContain(typeof(GetSampleHandler));
+        handlers.ShouldNotContain(t => t.IsGenericTypeDefinition);
+    }
+
     [Theory]
-    [InlineData(typeof(CreateSampleHandler))]
-    [InlineData(typeof(RenameSampleHandler))]
-    public void AddUseCases_DoesNotExposeTheConcreteCommandHandler(Type concreteHandler)
+    [MemberData(nameof(ConcreteHandlerTypes))]
+    public void AddUseCases_DoesNotExposeTheConcreteHandler(Type concreteHandler)
     {
         // Arrange
         using ServiceProvider provider = BuildProvider();
@@ -128,6 +143,17 @@ public class DependencyInjectionTests
         BuildServices(Substitute.For<ISampleStore>())
             .Select(d => d.ServiceType)
             .Where(t => t.IsGenericType && openContracts.Contains(t.GetGenericTypeDefinition()))
+            .ToArray();
+
+    // The decorators are open generics; everything else implementing a handler contract is a use case's handler.
+    private static Type[] ConcreteHandlers() =>
+        new[] { typeof(ICommandHandler<>).Assembly, typeof(DependencyInjectionTests).Assembly }
+            .SelectMany(assembly => assembly.GetTypes())
+            .Where(t => t is { IsClass: true, IsAbstract: false, IsGenericTypeDefinition: false })
+            .Where(t => t.GetInterfaces().Any(i => i.IsGenericType
+                && (i.GetGenericTypeDefinition() == typeof(ICommandHandler<>)
+                    || i.GetGenericTypeDefinition() == typeof(ICommandHandler<,>)
+                    || i.GetGenericTypeDefinition() == typeof(IQueryHandler<,>))))
             .ToArray();
 
     // The use cases in Application plus the samples in this assembly. Register every port a handler may need as a
