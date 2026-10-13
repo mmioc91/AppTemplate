@@ -14,7 +14,7 @@ Chat with Claude can be in any language; everything written into the repo (code,
 - Frontend (later): Angular PWA in `web/`
 
 ## Read first
-`README.md` is the map of the repo (structure, conventions, CI, getting started). Product design docs (what to build) are project-specific — once this template is used for a real project, link them here and say where they live; `docs/README.md` is their map (fill in its placeholders), `docs/implementation-plan.md` the ordered steps (tick a step off in the change that completes it; read it before proposing the next step), `docs/ubiquitous-language.md` the UI terms and their code names.
+`README.md` is the map of the repo (structure, conventions, CI, getting started). Product design docs (what to build) are project-specific; their map is `docs/README.md` — fill in its placeholders when this template becomes a project. Also under `docs/`: `implementation-plan.md`, the ordered steps (read it before proposing the next step; tick a step off in the change that completes it), and `ubiquitous-language.md`, the UI terms and their code names.
 **Decisions:** `docs/decisions/` holds one ADR per decision (index + open questions in its `README.md`). The ADRs shipped with the template are the baseline every project starts from. Whenever we make a choice that isn't obvious from the code — especially a deviation from a rule here or from a baseline ADR — add an ADR in the same change. Never rewrite an accepted ADR; supersede it with a new one.
 
 ## Architecture (always applies)
