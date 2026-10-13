@@ -17,7 +17,9 @@ See root `CLAUDE.md` for cross-cutting rules.
   **Id only**, no navigation property, but with a database foreign key (`ON DELETE RESTRICT` unless an ADR says
   otherwise). Child entities are owned collections (`OwnsMany`) so they load and save with their root.
 - **Value objects are complex types** (`ComplexProperty`), never owned types: owned types have identity, so a shared
-  instance (a static default, one value on two rows) is saved on one owner and lost on the rest (ADR 0016).
+  instance (a static default, one value on two rows) is saved on one owner and lost on the rest (ADR 0016). EF has
+  **no complex types on owned entities** (`OwnedNavigationBuilder` lacks `ComplexProperty`), so a value object on a
+  child entity goes through a value converter instead — one column, or one `jsonb` document for several values.
 - **Gotcha — get-only properties:** EF doesn't map `{ get; }` properties by convention, and Domain uses them a lot.
   List every one explicitly in the configuration (`builder.Property(o => o.CreatedAt);`) so EF fills its backing
   field. A model error only shows at runtime — generate the migration (or `GenerateCreateScript()`) to check a

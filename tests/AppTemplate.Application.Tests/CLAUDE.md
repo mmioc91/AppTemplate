@@ -16,5 +16,6 @@ for the rules this project tests.
   resolvable); leave them in place.
 - **Mutation testing** (Stryker.NET, config at `src/AppTemplate.Application/stryker-config.json`): run
   `dotnet tool run dotnet-stryker` from `src/AppTemplate.Application` (never the repo root). CI runs it on every PR for
-  changed Application code (`mutation (Application)`, artifact `mutation-report-Application`; ADR 0017); report-only.
+  changed Application code (`mutation (Application)`, artifact `mutation-report-Application`; ADR 0017); report-only,
+  and skipped with a notice past 40 changed C# files (run it locally on the files that matter then).
   String mutations are skipped (message text is never asserted). Anything surviving is a test that can't go red.

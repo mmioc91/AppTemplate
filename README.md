@@ -18,11 +18,15 @@ tested and documented, so the first commit of a new project can be its first use
 powershell -ExecutionPolicy Bypass -File .\rename-template.ps1 -NewName Slicice
 
 # This renames "AppTemplate" -> "Slicice" (and "apptemplate" -> "slicice") in both
-# file contents and file/folder names (namespaces, csproj, sln, docker-compose, README...).
+# file contents and file/folder names (namespaces, csproj, sln, docker-compose, README...),
+# drops the script's own entry from the .slnx and lists any leftover "AppTemplate" it couldn't rewrite.
 
 # 3. Delete rename-template.ps1 (no longer needed in the new project), then commit.
 # 4. In CLAUDE.md: describe the product and link its design docs (Read first);
 #    in src/*.Domain/CLAUDE.md: the model. Settle the open questions in docs/decisions/README.md as they come up.
+#    Design docs written before the fork? Add an ADR saying this template's conventions win on *how* where the two
+#    disagree (the docs stay the truth for *what*), with the known differences listed, so every later conflict has
+#    one answer.
 ```
 
 ---
@@ -98,11 +102,15 @@ project that knows about Infrastructure (for DI registration). Architecture test
 
 ## Conventions
 
-- **Branches:** `<type>/<task-id>-<description>` → `feat/fe-033-rapid-numpad`
+- **Branches:** `<type>/<description>` (optionally `<type>/<task-id>-<description>`) → `feat/order-aggregate`;
+  `claude/<name>` for the worktree branches the Claude desktop app creates.
   Types: `feat fix hotfix refactor perf test docs chore ci infra`
-- **Commits:** Conventional Commits → `feat(inventory): add rapid numpad entry`
+- **Commits:** Conventional Commits → `feat(orders): add the order aggregate`; a `!` before the colon marks a
+  breaking change (`feat!: …`).
 - **No direct commits to `main`** — branch + pull request + squash merge.
-- **Hooks** live in `.githooks/` and are activated with `git config core.hooksPath .githooks`.
+- **Hooks** live in `.githooks/` and are activated with `git config core.hooksPath .githooks`. They are stored with
+  the executable bit (`git add --chmod=+x .githooks/<hook>` for a new one — Windows never records it, and git on
+  Linux/macOS skips a hook stored without it) and with LF line endings (`.gitattributes`, ADR 0021).
   - `commit-msg` → message format
   - `pre-push` → branch name, blocks push to `main`, fast unit tests
 - **Decisions:** a choice that isn't obvious from the code gets an ADR in `docs/decisions/` in the same change.
@@ -115,11 +123,15 @@ Unfinished work goes into `main` **behind a feature flag**, not on a long-lived 
 
 | Workflow | When it runs |
 |---|---|
-| `backend-ci` | every PR (not path-filtered: `build-test` is a required check); push to `main` with changes in `src/`, `tests/` or `Directory.*.props`; on PRs also report-only mutation testing (Stryker) of changed Domain/Application code |
-| `web-ci` | PR / push to `main` with changes in `web/` |
+| `backend-ci` | every PR (not path-filtered: `build-test` is a required check); push to `main` with changes in `src/`, `tests/` or `Directory.*.props`; on PRs also report-only mutation testing (Stryker) of changed Domain/Application code, skipped with a notice when a PR changes more than 40 C# files of the project |
+| `web-ci` | PR / push to `main` with changes in `web/`: lint, format check, production build and Vitest (`web-build-test`) |
 | `pr-title` | on every PR (PR title = commit on `main` due to squash merge) |
 | `secrets-scan` | gitleaks on every PR / push |
 
 After the first push to GitHub, enable **branch protection** for `main`:
 Require PR + required status checks (`build-test`, `lint`), **without** "Require approvals"
-(a solo dev can't approve their own PR). Don't make `mutation` a required check — it is report-only.
+(a solo dev can't approve their own PR). Don't make `mutation` a required check — it is report-only — nor
+`web-build-test`: it is path-filtered, so a PR that doesn't touch `web/` would wait for it forever.
+A private repository on GitHub Free has no branch protection or rulesets at all; until the account is on Pro or Team,
+`main` changes only through pull requests merged once the checks are green — by convention, plus the local `pre-push`
+hook. Record that in an ADR so nobody later mistakes it for an oversight.

@@ -19,6 +19,8 @@ for the rules this project tests.
   `dotnet tool run dotnet-stryker` from `src/AppTemplate.Domain` (not the repo root — from there it ignores the
   config and mutates every project). Too slow for `dotnet build`/`dotnet test` or `pre-push`. CI runs it on every PR
   (`mutation (Domain)` in the `mutation` matrix job of `ci-backend.yml`, ADR 0017), limited to Domain code changed in
-  that PR (`--since`); the HTML report is uploaded as the `mutation-report-Domain` artifact. Report-only (`break: 0`);
+  that PR (`--since`); the HTML report is uploaded as the `mutation-report-Domain` artifact. A PR that changes more
+  than 40 C# files of the project skips it with a notice (it couldn't finish in the job's 20 minutes) — run Stryker
+  locally with `-m "**/File.cs"` per file that matters. Report-only (`break: 0`);
   no enforced threshold yet. String mutations are skipped (exception messages are never asserted). Surviving mutants
   usually point to tests that can't go red.
