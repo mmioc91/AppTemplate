@@ -16,8 +16,10 @@ Serilog with Seq, a request-logging event and logging decorators around every us
   and search; Development keeps the readable console.
 - **The correlation id is the W3C trace id** of the request's `Activity`, not an id of our own. Every log entry of a
   request carries `TraceId` (and `SpanId`, `ParentId`) in its scope (`ActivityTrackingOptions`); every ProblemDetails
-  carries the same value as `traceId` — outside a trace, the request's own identifier. A caller that sends
-  `traceparent` (a proxy, a frontend trace) continues its own trace.
+  carries the same value as `traceId` — the framework's default writes the whole `traceparent` form there
+  (`00-<trace>-<span>-01`), which `ProblemDetailsSetup` replaces with the bare trace id so it equals the log scope's;
+  outside a trace, the request's own identifier. A caller that sends `traceparent` (a proxy, a frontend trace)
+  continues its own trace.
 - **Every use case is logged by a decorator, outside validation** — Logging → Validation → handler, registered by
   `AddApplication` so no handler escapes it: the use case's name and duration at Debug on success; a failed `Result`
   at Information with its code and kind (`VALIDATION_FAILED` included); an exception at Information by type only (the
