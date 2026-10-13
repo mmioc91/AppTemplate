@@ -22,8 +22,9 @@ powershell -ExecutionPolicy Bypass -File .\rename-template.ps1 -NewName Slicice
 # drops the script's own entry from the .slnx and lists any leftover "AppTemplate" it couldn't rewrite.
 
 # 3. Delete rename-template.ps1 (no longer needed in the new project), then commit.
-# 4. In CLAUDE.md: describe the product and link its design docs (Read first);
-#    in src/*.Domain/CLAUDE.md: the model. Settle the open questions in docs/decisions/README.md as they come up.
+# 4. In CLAUDE.md: describe the product and link its design docs (Read first); in docs/README.md: fill in the
+#    document map; in docs/implementation-plan.md: the first steps; in src/*.Domain/CLAUDE.md: the model.
+#    Settle the open questions in docs/decisions/README.md as they come up.
 #    Design docs written before the fork? Add an ADR saying this template's conventions win on *how* where the two
 #    disagree (the docs stay the truth for *what*), with the known differences listed, so every later conflict has
 #    one answer.
@@ -89,7 +90,11 @@ Integration tests start their own Postgres with Testcontainers — Docker must b
 │  ├─ AppTemplate.Application.Tests/    unit (fake ports)
 │  ├─ AppTemplate.Integration.Tests/    Testcontainers Postgres + WebApplicationFactory
 │  └─ AppTemplate.Architecture.Tests/   layer boundaries (NetArchTest)
-├─ docs/decisions/              ADRs (one per decision) + open questions
+├─ docs/
+│  ├─ README.md                 documentation map: what to read, build order (placeholders to fill in)
+│  ├─ implementation-plan.md    the ordered steps, ticked off as they land
+│  ├─ ubiquitous-language.md    UI terms and the code names for them
+│  └─ decisions/                ADRs (one per decision) + open questions
 ├─ .claude/agents/              Claude Code agents (project-rules reviewer)
 ├─ web/                         Angular (coming later)
 ├─ .github/workflows/           CI
