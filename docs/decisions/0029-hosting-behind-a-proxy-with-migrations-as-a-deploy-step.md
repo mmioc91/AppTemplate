@@ -12,9 +12,9 @@ same whatever the platform, so they belong in the template; the platform itself 
 ## Decision
 - **One origin:** a reverse proxy serves the web app and forwards `/api`, `/health` (and a live hub, if any) to the
   Api, so there is no CORS and no second host to configure.
-- **Forwarded headers** (`X-Forwarded-For`, `X-Forwarded-Proto`) are trusted only from the networks listed in
-  `Proxy:KnownNetworks` (CIDR, comma-separated); without the setting, from loopback only. `UseForwardedHeaders` runs
-  first in the pipeline, so per-IP rate limits and logs see the real client.
+- **Forwarded headers** (`X-Forwarded-For`, `X-Forwarded-Proto`) are trusted from the networks listed in
+  `Proxy:KnownNetworks` (CIDR, comma-separated) next to loopback, and from nowhere else; without the setting, from
+  loopback only. `UseForwardedHeaders` runs first in the pipeline, so per-IP rate limits and logs see the real client.
 - **`AllowedHosts`** is the public host in production configuration, plus the proxy's internal name for its health
   checks — never `*`.
 - **Probes** ([0019](0019-liveness-and-readiness-health-checks.md)): the proxy health-checks `/health/ready` and takes
@@ -23,7 +23,9 @@ same whatever the platform, so they belong in the template; the platform itself 
   and exits, and the new version serves only after that succeeded. Production never migrates on startup; Development
   still does.
 - **Unknown routes answer 404 before authorization** (`UseNotFoundForUnmatchedRoutes`), so a fallback policy that
-  requires a signed-in user never hides a missing route behind a 401 ([0018](0018-http-error-contract.md)).
+  requires a signed-in user never hides a missing route behind a 401 ([0018](0018-http-error-contract.md)). That holds
+  only while `UseAuthentication()`/`UseAuthorization()` are called explicitly after it; `WebApplication` would
+  otherwise insert them ahead of every user middleware.
 - **The platform is the project's call**, recorded with its `deploy/` files: one Linux VM with Docker Compose
   (Postgres with a volume, a one-shot migrate service, the Api, Caddy with automatic HTTPS and the security headers,
   a nightly `pg_dump`) is the proven setup; a managed platform runs the same images with its proxy's network in
