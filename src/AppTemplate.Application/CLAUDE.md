@@ -19,11 +19,14 @@ See root `CLAUDE.md` for cross-cutting rules.
   return an aggregate or EF entity from a use case. Mapster only for large flat one-to-one mappings (ADR 0014).
 - **No mediator library** (ADR 0011): own handler interfaces in `Common/` — `ICommandHandler<TCommand>` (returns
   `Result`), `ICommandHandler<TCommand, TResult>` and `IQueryHandler<TQuery, TResult>` — resolved from DI;
-  cross-cutting steps (validation, later logging) are decorators around them.
+  cross-cutting steps are decorators around them: Logging → Validation → handler (ADR 0028).
 - **Handlers are `internal`** and never registered as themselves: `AddApplication()` scans the assembly and registers
-  only the decorated contract, so validation can't be bypassed by injecting a concrete handler. Tests reach handlers
-  via `InternalsVisibleTo`; `DependencyInjectionTests` proves every registered handler resolves wrapped in
-  validation and the concrete type isn't resolvable.
+  only the decorated contract, so logging and validation can't be bypassed by injecting a concrete handler. Tests
+  reach handlers via `InternalsVisibleTo`; `DependencyInjectionTests` proves every registered handler resolves wrapped
+  in logging then validation and the concrete type isn't resolvable.
+- **Logging (ADR 0028):** `LoggingDecorator`/`QueryLoggingDecorator` log a use case's name, duration and outcome (the
+  code and kind of a failure, the type of an exception) — never the input. A handler that logs something of its own
+  uses `ILogger<T>` with `[LoggerMessage]` and ids only.
 - **Unique-constraint races:** a write that can hit a unique index catches `UniqueConstraintViolationException`
   around `SaveChangesAsync` and decides by the database, never by the constraint name: own row there → a retried
   commit succeeded (success); same natural key there → Conflict; otherwise rethrow (ADR 0013).
