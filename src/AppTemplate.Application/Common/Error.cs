@@ -30,6 +30,10 @@ public sealed record Error
 
     public static Error Forbidden(string code, string message) => Create(code, ErrorKind.Forbidden, message);
 
+    // The caller could not be authenticated (wrong credentials, an unusable token): the same 401 the framework answers
+    // when no credentials came at all.
+    public static Error Unauthorized(string code, string message) => Create(code, ErrorKind.Unauthorized, message);
+
     public static Error Validation(IReadOnlyDictionary<string, string[]> fieldErrors)
     {
         ArgumentNullException.ThrowIfNull(fieldErrors);

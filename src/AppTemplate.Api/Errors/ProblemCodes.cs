@@ -12,6 +12,7 @@ internal static class ProblemCodes
     public const string NotFound = "NOT_FOUND";
     public const string MethodNotAllowed = "METHOD_NOT_ALLOWED";
     public const string UnsupportedMediaType = "UNSUPPORTED_MEDIA_TYPE";
+    public const string TooManyRequests = "TOO_MANY_REQUESTS";
     public const string RequestRejected = "REQUEST_REJECTED";
     public const string UnexpectedError = "UNEXPECTED_ERROR";
 
@@ -23,6 +24,7 @@ internal static class ProblemCodes
         StatusCodes.Status404NotFound => NotFound,
         StatusCodes.Status405MethodNotAllowed => MethodNotAllowed,
         StatusCodes.Status415UnsupportedMediaType => UnsupportedMediaType,
+        StatusCodes.Status429TooManyRequests => TooManyRequests,
         >= StatusCodes.Status500InternalServerError => UnexpectedError,
         _ => RequestRejected,
     };

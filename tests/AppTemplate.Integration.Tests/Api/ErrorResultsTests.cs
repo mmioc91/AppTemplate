@@ -13,6 +13,7 @@ public class ErrorResultsTests
         { Error.NotFound("ORDER_NOT_FOUND", "Order 42 was not found."), StatusCodes.Status404NotFound },
         { Error.Conflict("ORDER_DUPLICATE", "Customer 7 already placed ORD-1."), StatusCodes.Status409Conflict },
         { Error.Forbidden("QUOTA_EXCEEDED", "Customer 7 reached the plan limit."), StatusCodes.Status403Forbidden },
+        { Error.Unauthorized("AUTH_INVALID_CREDENTIALS", "Wrong password for user 7."), StatusCodes.Status401Unauthorized },
     };
 
     [Theory]

@@ -13,6 +13,7 @@ public class ProblemCodesTests
     [InlineData(StatusCodes.Status404NotFound, ProblemCodes.NotFound)]
     [InlineData(StatusCodes.Status405MethodNotAllowed, ProblemCodes.MethodNotAllowed)]
     [InlineData(StatusCodes.Status415UnsupportedMediaType, ProblemCodes.UnsupportedMediaType)]
+    [InlineData(StatusCodes.Status429TooManyRequests, ProblemCodes.TooManyRequests)]
     [InlineData(StatusCodes.Status413PayloadTooLarge, ProblemCodes.RequestRejected)]
     [InlineData(StatusCodes.Status500InternalServerError, ProblemCodes.UnexpectedError)]
     [InlineData(StatusCodes.Status503ServiceUnavailable, ProblemCodes.UnexpectedError)]

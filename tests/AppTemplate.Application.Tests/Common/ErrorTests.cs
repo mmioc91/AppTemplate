@@ -42,6 +42,18 @@ public class ErrorTests
         error.FieldErrors.ShouldBeEmpty();
     }
 
+    [Fact]
+    public void Unauthorized_WithCodeAndMessage_HasUnauthorizedKind()
+    {
+        // Act
+        var error = Error.Unauthorized("AUTH_INVALID_CREDENTIALS", "Wrong password.");
+
+        // Assert
+        error.Code.ShouldBe("AUTH_INVALID_CREDENTIALS");
+        error.Kind.ShouldBe(ErrorKind.Unauthorized);
+        error.FieldErrors.ShouldBeEmpty();
+    }
+
     [Theory]
     [InlineData(null)]
     [InlineData("")]
@@ -52,11 +64,13 @@ public class ErrorTests
         Func<Error> notFound = () => Error.NotFound(code!, "message");
         Func<Error> conflict = () => Error.Conflict(code!, "message");
         Func<Error> forbidden = () => Error.Forbidden(code!, "message");
+        Func<Error> unauthorized = () => Error.Unauthorized(code!, "message");
 
         // Assert
         Should.Throw<ArgumentException>(notFound);
         Should.Throw<ArgumentException>(conflict);
         Should.Throw<ArgumentException>(forbidden);
+        Should.Throw<ArgumentException>(unauthorized);
     }
 
     [Fact]
