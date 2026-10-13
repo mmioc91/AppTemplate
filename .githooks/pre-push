@@ -13,8 +13,8 @@ fi
 
 if ! echo "$branch" | grep -Eq "$pattern"; then
   echo "❌ Invalid branch name: $branch"
-  echo "   Format:  <type>/<task-id>-<description>"
-  echo "   Example: feat/fe-033-rapid-numpad"
+  echo "   Format:  <type>/<description>   (optionally <type>/<task-id>-<description>, or claude/<name>)"
+  echo "   Example: feat/order-aggregate"
   exit 1
 fi
 

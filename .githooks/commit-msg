@@ -15,7 +15,7 @@ if ! echo "$first_line" | grep -Eq "$pattern"; then
   echo ""
   echo "   Format:  <type>(<scope>): <description>   (a ! before the colon marks a breaking change)"
   echo "   Types:   feat fix hotfix refactor perf test docs chore ci infra"
-  echo "   Example: feat(scoring): queue results while offline"
+  echo "   Example: feat(orders): add the order aggregate"
   echo ""
   echo "   Your message: $first_line"
   exit 1

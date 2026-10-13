@@ -64,7 +64,7 @@ Integration tests start their own Postgres with Testcontainers — Docker must b
 | Persistence | `AppDbContext` (snake_case, UTC `DateTimeOffset`, smart-enum converter), `IUnitOfWork` that turns unique violations and concurrency conflicts into Application exceptions, retrying Npgsql, design-time factory for migrations | `src/*.Infrastructure` |
 | HTTP | ProblemDetails with a `code` on every error (422 domain, 400 validation, 404/409/403, framework errors), API versioning + built-in OpenAPI per version, JSON enums by name, `/health/live` + `/health/ready` | `src/*.Api` |
 | Tests | Postgres fixture + `WebApplicationFactory` on the real DI setup, error-contract tests, DI tests that prove every handler is validated, architecture tests | `tests/` |
-| Decisions | 20 baseline ADRs + open questions (auth scheme, tenancy, hosting, idempotency, logging) | `docs/decisions/` |
+| Decisions | 21 baseline ADRs + open questions (auth scheme, tenancy, hosting, idempotency, logging) | `docs/decisions/` |
 | Claude Code | `CLAUDE.md` per layer and test project, project reviewer agent | `CLAUDE.md`, `.claude/agents/` |
 
 ---
@@ -123,8 +123,8 @@ Unfinished work goes into `main` **behind a feature flag**, not on a long-lived 
 
 | Workflow | When it runs |
 |---|---|
-| `backend-ci` | every PR (not path-filtered: `build-test` is a required check); push to `main` with changes in `src/`, `tests/` or `Directory.*.props`; on PRs also report-only mutation testing (Stryker) of changed Domain/Application code, skipped with a notice when a PR changes more than 40 C# files of the project |
-| `web-ci` | PR / push to `main` with changes in `web/`: lint, format check, production build and Vitest (`web-build-test`) |
+| `backend-ci` | every PR (not path-filtered: `build-test` is a required check); push to `main` with changes in `src/`, `tests/`, `Directory.*.props` or the workflow itself; on PRs also report-only mutation testing (Stryker) of changed Domain/Application code, skipped with a notice when a PR changes more than 40 C# files of the project |
+| `web-ci` | PR / push to `main` with changes in `web/`: `npm run lint`, `npm run format:check`, a production build and `npm test` (Vitest) in the `web-build-test` job — `web/package.json` must provide exactly those scripts (Prettier with `"endOfLine": "auto"`, ADR 0021) |
 | `pr-title` | on every PR (PR title = commit on `main` due to squash merge) |
 | `secrets-scan` | gitleaks on every PR / push |
 

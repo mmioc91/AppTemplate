@@ -25,7 +25,7 @@ Set-Location $PSScriptRoot
 $Old       = 'AppTemplate'
 $OldLower  = 'apptemplate'
 $NewLower  = $NewName.ToLower()
-$Utf8NoBom = New-Object System.Text.UTF8Encoding $false
+$Utf8NoBom = New-Object System.Text.UTF8Encoding $false, $true   # no BOM; a non-UTF-8 file fails instead of being rewritten corrupted
 $ScriptName = Split-Path -Leaf $PSCommandPath
 
 if ($NewName -notmatch '^[A-Z][A-Za-z0-9]*$') {
@@ -111,7 +111,7 @@ Write-Host "`n==> Removing $ScriptName from the solution items" -ForegroundColor
 
 Get-ChildItem -File -Filter '*.slnx' | ForEach-Object {
     [string[]]$lines = [IO.File]::ReadAllLines($_.FullName, $Utf8NoBom)
-    [string[]]$kept = @($lines | Where-Object { $_ -notmatch [regex]::Escape($ScriptName) })
+    [string[]]$kept = @($lines | Where-Object { $_ -notmatch ('<File Path="' + [regex]::Escape($ScriptName) + '"') })
     if ($kept.Count -ne $lines.Count) {
         [IO.File]::WriteAllLines($_.FullName, $kept, $Utf8NoBom)
         Write-Host "    removed from $($_.Name)" -ForegroundColor DarkGray

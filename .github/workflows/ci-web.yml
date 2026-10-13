@@ -29,7 +29,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # The Node the production image builds with (node:22): CI tests what ships.
+      # Pinned to the Node a project's web image builds with (node:22), so CI tests what ships.
       - uses: actions/setup-node@v4
         with:
           node-version: '22'

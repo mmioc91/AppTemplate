@@ -88,7 +88,8 @@ jobs:
       - name: Size of the change
         id: size
         run: |
-          changed=$(git diff --name-only "origin/${{ github.base_ref }}...HEAD" -- "src/AppTemplate.${{ matrix.project }}" | grep -c '\.cs$' || true)
+          files=$(git diff --name-only "origin/${{ github.base_ref }}...HEAD" -- "src/AppTemplate.${{ matrix.project }}")
+          changed=$(printf '%s\n' "$files" | grep -c '\.cs$' || true)
           echo "changed=$changed" >> "$GITHUB_OUTPUT"
           if [ "$changed" -gt 40 ]; then
             echo "::notice title=Mutation testing skipped::$changed C# files of AppTemplate.${{ matrix.project }} changed - too many to mutate in CI; run Stryker locally with -m on the files that matter."
