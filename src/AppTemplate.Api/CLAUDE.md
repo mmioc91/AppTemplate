@@ -26,7 +26,9 @@ See root `CLAUDE.md` for cross-cutting rules.
   only (`JsonStringEnumConverter(allowIntegerValues: false)`), instants only with an offset (`StrictInstantConverter`:
   `Z` or `±hh:mm`, anything else is 400 `MALFORMED_REQUEST` — System.Text.Json would otherwise read it in the server's
   time zone; a test of a new instant field sends one with `Z` or `+02:00`), numbers only as JSON numbers
-  (`JsonNumberHandling.Strict`, so the schemas say `integer`, not `integer|string`).
+  (`JsonNumberHandling.Strict`, so the schemas say `integer`, not `integer|string`). The converter covers bodies only:
+  an instant in a query string would bind in the server's time zone — bind it as a string and let the validator apply
+  the same rule, or keep instants out of query strings.
 - **Requests (ADR 0020):** a mandatory value-type field (enum, number, bool, date) is **nullable** in the `XxxRequest`
   and the command, validated `NotNull → REQUIRED` — otherwise a missing field silently binds to its default (an enum's
   first member, `0`, `false`).

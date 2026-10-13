@@ -22,7 +22,9 @@ built from this template found the same holes on their first screens:
 - **Instants need an offset:** `StrictInstantConverter` on the HTTP JSON options accepts an ISO 8601 date and time
   ending in `Z` or `±hh:mm` and nothing else, for `DateTimeOffset` and `DateTimeOffset?`; anything else is a
   `JsonException`, so 400 `MALFORMED_REQUEST` ([0018](0018-http-error-contract.md)). Writing is unchanged. Clients
-  send instants with their offset (`toISOString()`).
+  send instants with their offset (`toISOString()`). This covers JSON bodies only: a `DateTimeOffset` in a query
+  string binds through `DateTimeOffset.TryParse`, in the server's time zone — bind such a parameter as a string and
+  apply the same rule in the validator, or keep instants out of query strings.
 - **Numbers are JSON numbers:** `JsonNumberHandling.Strict`; `"21"` is 400 and the schemas say `integer`. Query
   strings are unaffected (parsed, not JSON).
 - **`ClientTypesTransformer`** (a schema transformer) gives an instant `type: string` (or `string | null`) next to its
@@ -31,14 +33,17 @@ built from this template found the same holes on their first screens:
   fixed values lists them with **`[QueryValues(...)]`** (`QueryValuesTransformer`; documentation only, the validator
   still decides — [0022](0022-lists-that-can-grow-are-paged.md)). `AllowedValuesAttribute` would say the same, but the
   OpenAPI generator fails on it.
-- **Pinned by tests that walk the whole document** (`OpenApiContractTests`): no schema is both a number and a string,
-  every formatted schema has a type, every enum is a string without `null`, every query parameter is camelCase.
-  `ApiHostTests` pins the converter and the strict numbers; `ClientTypesTransformerTests` the transformer.
+- **Pinned by tests that walk the whole document** (`OpenApiContract`, run on the live document by
+  `OpenApiContractTests` and proved on fixtures by `OpenApiContractRulesTests`): no schema is both a number and a
+  string, every formatted schema has a type, every enum is a string without `null`, every query parameter is
+  camelCase. `ApiHostTests` pins the converter and the strict numbers; `ClientTypesTransformerTests` and
+  `QueryValuesTransformerTests` the transformers.
 
 ## Consequences
 - A client that sent numbers as strings or instants without an offset gets 400 instead of a silently wrong value; a
-  generated client never does.
-- A new query parameter needs its `[FromQuery(Name = …)]`, or the camelCase test fails.
+  generated client never does. `ProblemDetails.status` is a plain `integer` in the document too.
+- A query parameter bound from an `[AsParameters]` record needs its `[FromQuery(Name = …)]` (a plain handler
+  parameter is already camelCase), or the camelCase test fails.
 - Smart enums travel as their names and the document types them as `string`; listing their values for the client is
   decided per type, when a screen switches on one.
 - The document still says `date-time` for an instant; the stricter rule is this ADR and the converter.

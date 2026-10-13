@@ -41,8 +41,9 @@ tests and Api-level functional tests.
   `DefaultHttpContext` and reads back the JSON.
 - **`ApiHostTests`** pins host-wide behavior (health, JSON options, OpenAPI document, framework error codes). Every new
   endpoint gets a row pinning the statuses it declares in the OpenAPI document (ADR 0009). `OpenApiContractTests`
-  walks the whole document for the generated client's sake (ADR 0027) — with no endpoint yet it has nothing to check;
-  the first endpoint makes it real.
+  runs the rules in `OpenApiContract` over the whole live document for the generated client's sake (ADR 0027) — with
+  no endpoint yet it has nothing to find, so `OpenApiContractRulesTests` proves each rule on a hand-written document;
+  the first endpoint makes the live run real.
 - Slower than unit tests by nature — this is exactly why `.githooks/pre-push` intentionally skips this project and
   leaves it to CI.
 - `Program` (top-level statements in Api) and the `internal` Api/Infrastructure types are visible here via
