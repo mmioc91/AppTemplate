@@ -12,8 +12,11 @@ for the rules this project tests.
   `Integration.Tests` (ADR 0010).
 - **`DependencyInjectionTests`** resolves every registered handler through `AddApplication()`: when a new handler
   needs a port, register it there as a substitute (`BuildServices`) or the test fails — which is the point. The
-  sample use cases in `Samples/` exercise the registration itself (every handler kind, decorated, concrete type not
-  resolvable); leave them in place.
+  sample use cases in `Samples/` exercise the registration itself (every handler kind, decorated with logging then
+  validation, concrete type not resolvable); leave them in place.
+- **Logging is asserted with `FakeLogger`** (`Microsoft.Extensions.Diagnostics.Testing`; `AddFakeLogging()` +
+  `GetFakeLogCollector()` on a provider): structured state values (`UseCase`, `ErrorCode`), never message text, and a
+  test that the input never appears in any record (ADR 0028).
 - **Mutation testing** (Stryker.NET, config at `src/AppTemplate.Application/stryker-config.json`): run
   `dotnet tool run dotnet-stryker` from `src/AppTemplate.Application` (never the repo root). CI runs it on every PR for
   changed Application code (`mutation (Application)`, artifact `mutation-report-Application`; ADR 0017); report-only,

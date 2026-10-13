@@ -2,8 +2,8 @@ using FluentValidation;
 
 namespace AppTemplate.Application.Common;
 
-// First link of the handler chain: stops the chain with a Validation error instead of calling the handler when any
-// rule fails (ADR 0012).
+// Inside the logging decorator, around the handler: stops the chain with a Validation error instead of calling the
+// handler when any rule fails (ADR 0012).
 public sealed class ValidationDecorator<TCommand>(
     ICommandHandler<TCommand> inner,
     IEnumerable<IValidator<TCommand>> validators) : ICommandHandler<TCommand>

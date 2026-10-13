@@ -1,6 +1,8 @@
 using AppTemplate.Application.Common;
 using AppTemplate.Application.Tests.Samples;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Testing;
 using Microsoft.Extensions.Time.Testing;
 using NSubstitute;
 using Shouldly;
@@ -24,7 +26,7 @@ public class DependencyInjectionTests
     // Factory registrations escape ValidateOnBuild, so resolve each one: a missing dependency fails here, not in production.
     [Theory]
     [MemberData(nameof(RegisteredCommandContracts))]
-    public void AddApplication_EveryRegisteredCommandHandlerResolvesWrappedInValidation(Type contract)
+    public void AddApplication_EveryRegisteredCommandHandlerResolvesWrappedInLoggingThenValidation(Type contract)
     {
         // Arrange
         using ServiceProvider provider = BuildProvider();
@@ -33,13 +35,13 @@ public class DependencyInjectionTests
         // Act
         object handler = scope.ServiceProvider.GetRequiredService(contract);
 
-        // Assert
-        handler.GetType().GetGenericTypeDefinition().ShouldBeOneOf(typeof(ValidationDecorator<>), typeof(ValidationDecorator<,>));
+        // Assert: the outermost link is logging (ADR 0028); validation underneath is proved by the invalid-command tests.
+        handler.GetType().GetGenericTypeDefinition().ShouldBeOneOf(typeof(LoggingDecorator<>), typeof(LoggingDecorator<,>));
     }
 
     [Theory]
     [MemberData(nameof(RegisteredQueryContracts))]
-    public void AddApplication_EveryRegisteredQueryHandlerResolvesWrappedInValidation(Type contract)
+    public void AddApplication_EveryRegisteredQueryHandlerResolvesWrappedInLoggingThenValidation(Type contract)
     {
         // Arrange
         using ServiceProvider provider = BuildProvider();
@@ -49,7 +51,27 @@ public class DependencyInjectionTests
         object handler = scope.ServiceProvider.GetRequiredService(contract);
 
         // Assert
-        handler.GetType().GetGenericTypeDefinition().ShouldBe(typeof(QueryValidationDecorator<,>));
+        handler.GetType().GetGenericTypeDefinition().ShouldBe(typeof(QueryLoggingDecorator<,>));
+    }
+
+    [Fact]
+    public async Task AddUseCases_InvalidCommand_IsLoggedWithTheValidationCode()
+    {
+        // Arrange: logging sits outside validation, so a refused input is logged too (ADR 0028).
+        ServiceCollection services = BuildServices(_store);
+        services.AddLogging(logging => logging.AddFakeLogging());
+        using ServiceProvider provider = services.BuildServiceProvider(new ServiceProviderOptions { ValidateScopes = true });
+        using IServiceScope scope = provider.CreateScope();
+        ICommandHandler<CreateSample, Guid> handler = scope.ServiceProvider.GetRequiredService<ICommandHandler<CreateSample, Guid>>();
+
+        // Act
+        await handler.HandleAsync(new CreateSample(""), CancellationToken.None);
+
+        // Assert
+        FakeLogRecord record = provider.GetFakeLogCollector().LatestRecord;
+        record.Level.ShouldBe(LogLevel.Information);
+        record.GetStructuredStateValue("UseCase").ShouldBe(nameof(CreateSample));
+        record.GetStructuredStateValue("ErrorCode").ShouldBe(Error.ValidationFailedCode);
     }
 
     [Fact]

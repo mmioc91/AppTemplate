@@ -43,7 +43,14 @@ See root `CLAUDE.md` for cross-cutting rules.
   `[FromQuery(Name = "...")]` (otherwise the document uses the record's PascalCase names); a string query parameter
   with fixed values lists them with `[QueryValues(...)]` — not `[AllowedValues]`, which makes the generator fail;
   `OpenApiContractTests` walks the whole document and pins all of it.
-- **Startup:** migrations run on startup in Development only; HSTS outside Development.
+- **Startup (ADR 0029):** migrations run on startup in Development only; `Database:MigrateAndExit=true` migrates and
+  exits (the deploy step, before the new version serves; the key is `DependencyInjection.MigrateAndExitKey`);
+  `UseForwardedHeaders` runs first and trusts `Proxy:KnownNetworks` next to loopback, nothing else; HSTS outside
+  Development; `AllowedHosts` is the real host in production configuration, never `*`.
+- **Logs and trace ids (ADR 0028):** log through `ILogger` with `[LoggerMessage]`; the request's W3C trace id is in
+  every entry's scope and in every ProblemDetails as `traceId` (`ProblemDetailsSetup`) — never invent another
+  correlation id. Production logs are JSON lines (`appsettings.Production.json`). A use case's outcome is logged by its
+  decorator; an endpoint logs nothing of its own.
 - **Health (ADR 0019):** `/health/live` has no checks (for restarts); `/health/ready` checks the database and pending
   migrations (for rotation and the deploy gate). Both anonymous, outside `/api/v1`.
 - **Endpoint groups:** `app.MapApiV1()` is `/api/v{version}`; each area maps its own sub-group
@@ -55,7 +62,10 @@ See root `CLAUDE.md` for cross-cutting rules.
 - **Auth:** not wired yet — the scheme (cookie vs JWT) is an open question in `docs/decisions/README.md`. Whichever it
   is: the current user's id comes from the authenticated principal through an `ICurrentUser`-style port, **never**
   from the request body; prefer a fallback policy that requires authentication on every endpoint and mark the
-  exceptions with `.AllowAnonymous()` (`/health/*` and OpenAPI already are).
+  exceptions with `.AllowAnonymous()` (`/health/*` and OpenAPI already are). `UseNotFoundForUnmatchedRoutes()` already
+  runs before authorization, so a fallback policy keeps unknown routes at 404 instead of 401 (ADR 0018, 0029) — but
+  only if `UseAuthentication()`/`UseAuthorization()` are called explicitly at the placeholder in `Program.cs`:
+  registered without the calls, `WebApplication` inserts them ahead of every user middleware and the 401 wins again.
 
 ## Tests
 See `tests/AppTemplate.Integration.Tests/CLAUDE.md`.

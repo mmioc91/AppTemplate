@@ -39,9 +39,23 @@ public class ProblemDetailsSetupTests
         body.GetProperty("code").GetString().ShouldBe(ProblemCodes.MalformedRequest);
     }
 
-    private static async Task<JsonElement> WriteAsync(int status, string? code)
+    [Fact]
+    public async Task Write_OutsideATrace_CarriesTheRequestsIdentifier()
     {
+        // Arrange: no Activity here, so the request's own identifier stands in (ADR 0028).
         DefaultHttpContext context = ProblemResponse.NewHttpContext();
+
+        // Act
+        JsonElement body = await WriteAsync(StatusCodes.Status500InternalServerError, code: null, context);
+
+        // Assert
+        body.GetProperty(ProblemDetailsSetup.TraceIdKey).GetString().ShouldBe(context.TraceIdentifier);
+    }
+
+    private static Task<JsonElement> WriteAsync(int status, string? code) => WriteAsync(status, code, ProblemResponse.NewHttpContext());
+
+    private static async Task<JsonElement> WriteAsync(int status, string? code, DefaultHttpContext context)
+    {
         context.Response.StatusCode = status;
         ProblemDetails problem = new() { Status = status };
         if (code is not null)

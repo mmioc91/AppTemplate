@@ -10,6 +10,9 @@ public static class DependencyInjection
 {
     public const string ConnectionStringName = "Db";
 
+    // Set to true, the Api migrates the database and exits instead of serving: the production deploy step (ADR 0029).
+    public const string MigrateAndExitKey = "Database:MigrateAndExit";
+
     // Health checks tagged with this decide readiness (ADR 0019): database reachable and fully migrated.
     public const string ReadinessTag = "ready";
 
