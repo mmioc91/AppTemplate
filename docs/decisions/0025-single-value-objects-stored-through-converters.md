@@ -9,7 +9,7 @@ owning table. A value object that wraps a single value (a `Slug`, an `EmailAddre
 and is compared in queries (`WHERE slug = @slug`). A complex type would put the value in a column named after the
 wrapper (`public_slug_value`), and an index on a complex type's property is not something EF's `HasIndex` offers on
 the entity. Strongly-typed IDs, which are also single-value wrappers, already go through value converters
-(Podium ADR 0029).
+([0003](0003-strongly-typed-ids.md)); Podium hit the question with its first slug.
 
 ## Decision
 - A value object with **exactly one value** is stored as that value through a `ValueConverter` in

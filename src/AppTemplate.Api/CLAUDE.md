@@ -6,7 +6,7 @@ See root `CLAUDE.md` for cross-cutting rules.
 - **Thin:** endpoint → build the use-case input → call Application → map the result to HTTP. **No** business
   logic here; **never** touch `DbContext` or repositories directly.
 - **Minimal APIs** with route groups; prefer `TypedResults`. Version endpoints via `Asp.Versioning.Http`.
-- **Error contract (ADR 0007, 0008, 0018), already wired in `Errors/`:** every error response is ProblemDetails with
+- **Error contract (ADR 0007, 0008, 0018, 0026), already wired in `Errors/`:** every error response is ProblemDetails with
   a `code`. An endpoint returns `error.ToProblem()` for a Result failure (its return type is
   `Results<…, ProblemHttpResult>`) and never builds ProblemDetails itself — Validation → **400** with `errors`
   (field → error codes; C# property paths like `Address.Street` become the JSON names the client sent,
@@ -18,7 +18,8 @@ See root `CLAUDE.md` for cross-cutting rules.
   is replaced. Unexpected → 500 without details. No message ever reaches the client — no `detail`; messages go to the
   log. No `try/catch` in endpoints.
 - **Actions on an aggregate** (`POST …/{id}/archive`, ADR 0023) answer **204** from a `Result`, declare
-  401/403/404/409/422, repeat as a no-op once answered, and answer 409 `CONCURRENCY_CONFLICT` to a concurrent change.
+  404/409/422 (and 401/403 once auth exists), repeat as a no-op once answered, and answer 409 `CONCURRENCY_CONFLICT`
+  to a concurrent change.
 - **Options:** every Options class is bound here, in `Program.cs` (`AddOptions<T>().Bind(section).ValidateOnStart()`)
   — Application only registers defaults, so an unbound one silently ignores its configuration.
 - **JSON:** camelCase (Minimal API default — `ErrorResults` relies on it, a test guards it), enums by name only

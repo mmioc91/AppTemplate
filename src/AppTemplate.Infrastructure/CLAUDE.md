@@ -18,8 +18,9 @@ See root `CLAUDE.md` for cross-cutting rules.
 - **Aggregate boundaries in EF:** navigations *within* an aggregate; cross-aggregate references stay a scalar
   **Id only**, no navigation property, but with a database foreign key (`ON DELETE RESTRICT` unless an ADR says
   otherwise). Child entities are owned collections (`OwnsMany`) so they load and save with their root.
-- **Value objects are complex types** (`ComplexProperty`), never owned types: owned types have identity, so a shared
-  instance (a static default, one value on two rows) is saved on one owner and lost on the rest (ADR 0016). EF has
+- **Value objects with two or more values are complex types** (`ComplexProperty`; a single value goes through a
+  converter, ADR 0025), never owned types: owned types have identity, so a shared instance (a static default, one
+  value on two rows) is saved on one owner and lost on the rest (ADR 0016). EF has
   **no complex types on owned entities** (`OwnedNavigationBuilder` lacks `ComplexProperty`), so a value object on a
   child entity goes through a value converter instead — one column, or one `jsonb` document for several values.
 - **Gotcha — get-only properties:** EF doesn't map `{ get; }` properties by convention, and Domain uses them a lot.
@@ -47,7 +48,8 @@ See root `CLAUDE.md` for cross-cutting rules.
 - **Unit of work:** `IUnitOfWork.SaveChangesAsync` translates the expected outcomes: a Postgres unique violation
   (SQLSTATE `23505`) becomes `UniqueConstraintViolationException`, `DbUpdateConcurrencyException` becomes
   `ConcurrencyConflictException` (ADR 0013). Cover both with integration tests using real conflicts once the first
-  aggregate exists. Anything else (e.g. a foreign-key violation) is a bug and surfaces untranslated (500).
+  aggregate exists — and that `DiscardChanges()` lets the same scope reload and save again after one. Anything else
+  (e.g. a foreign-key violation) is a bug and surfaces untranslated (500).
   `DiscardChanges()` (`ChangeTracker.Clear()`) lets a system path reload and retry after a conflict. Infrastructure
   code that saves its own rows outside the unit of work (an identity service, a worker) asks
   `DbUpdateExceptions.IsUniqueViolation()` and checks for its own row before calling it a duplicate.

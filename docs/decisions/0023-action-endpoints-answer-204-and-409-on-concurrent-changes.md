@@ -6,13 +6,13 @@
 ## Context
 An action on an aggregate (archive, confirm, cancel, snooze) is a `POST` sub-route that changes a loaded aggregate and
 is the first place a project meets `xmin` conflicts over HTTP ([0013](0013-save-outcomes-unique-violations-and-conflicts.md)
-translates them, but names no code and no answer for a repeated or concurrent action). UnifiedPackageTracker
-(ADR 0043) and Podium (ADR 0032, 0061) settled the same contract independently.
+translates them, but names no code and no answer for a repeated or concurrent action). UnifiedPackageTracker and
+Podium, both built from this template, settled the same contract independently.
 
 ## Decision
 - **`POST /…/{id}/<action>` answers `204 No Content`** (a `Result` from `ICommandHandler<TCommand>`): the client
-  reloads the resource afterwards anyway, and an empty answer needs no DTO per action. It declares 401/403/404/409/422
-  for OpenAPI.
+  reloads the resource afterwards anyway, and an empty answer needs no DTO per action. It declares 404/409/422 for
+  OpenAPI, and 401/403 once authentication exists.
 - **A repeated action is a no-op:** a request repeated after the first one was answered gets `204` again (the domain
   method ignores a repeat that changes nothing); a state that forbids the action answers `422` with the domain code.
 - **A concurrent change answers `409 CONCURRENCY_CONFLICT`** (`CommonErrors.ConcurrencyConflict()`): two requests in

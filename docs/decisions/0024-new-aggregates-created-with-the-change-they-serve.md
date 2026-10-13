@@ -7,7 +7,7 @@
 `src/AppTemplate.Domain/CLAUDE.md` says one transaction changes one aggregate. The first use case that strains the
 rule looks the same in every project: a user enters something that is both a new aggregate of its own and an entry on
 an existing one — a person created for a roster entry, a customer created with their first order, the matches a
-format generates for a category's structure (Podium ADR 0030). Saving the new aggregate first and the entry second
+format generates for a category's structure (Podium met all three). Saving the new aggregate first and the entry second
 leaves an orphan whenever the second save fails (a taken number, a frozen parent, a concurrent edit). Asking the
 client for two calls only moves the orphan to the client.
 

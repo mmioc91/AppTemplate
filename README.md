@@ -64,7 +64,7 @@ Integration tests start their own Postgres with Testcontainers — Docker must b
 | Persistence | `AppDbContext` (snake_case, UTC `DateTimeOffset`, smart-enum converter), `IUnitOfWork` that turns unique violations and concurrency conflicts into Application exceptions (and `DiscardChanges()` to retry), retrying Npgsql, design-time factory for migrations | `src/*.Infrastructure` |
 | HTTP | ProblemDetails with a `code` on every error (422 domain, 400 validation, 401/403/404/409, framework errors, 429), API versioning + built-in OpenAPI per version, JSON enums by name, `/health/live` + `/health/ready` | `src/*.Api` |
 | Tests | Postgres fixture + `WebApplicationFactory` on the real DI setup (a fake clock, extra settings or an empty database on request), error-contract tests, DI tests that prove every handler is validated, architecture tests | `tests/` |
-| Decisions | 25 baseline ADRs + open questions (auth scheme, tenancy, hosting, idempotency, logging) | `docs/decisions/` |
+| Decisions | 26 baseline ADRs + open questions (auth scheme, tenancy, hosting, idempotency, logging) | `docs/decisions/` |
 | Claude Code | `CLAUDE.md` per layer and test project, project reviewer agent | `CLAUDE.md`, `.claude/agents/` |
 
 ---

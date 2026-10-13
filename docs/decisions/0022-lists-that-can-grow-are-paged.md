@@ -6,9 +6,9 @@
 ## Context
 `src/AppTemplate.Api/CLAUDE.md` asked lists that can grow for `{ items, total, page, pageSize }`, but nothing in the
 code defined the shape or its limits, and query handlers were registered without a validation decorator "until a
-query has input to validate". The first paged query of both projects built from this template (UnifiedPackageTracker
-ADR 0042, Podium's list endpoints) hit both gaps on the same day: a bad page size reached the read store, and each
-project wrote the same `PagedList` again.
+query has input to validate". The first paged query of both projects built from this template (UnifiedPackageTracker,
+Podium) hit both gaps on the same day: a bad page size reached the read store, and each project wrote the same
+`PagedList` again.
 
 ## Decision
 - **`PagedList<T>(Items, Total, Page, PageSize)`** in `Application/Common` is the shape of every list that can grow;
@@ -22,7 +22,9 @@ project wrote the same `PagedList` again.
   (a query without a validator passes straight through); the concrete handlers can't be resolved on their own.
 - A value with a fixed set of names (`?status=active|archived`) is bound as a **string** and checked by the
   validator (`NOT_ALLOWED`), not as an enum: Minimal APIs parse an enum in the query with `Enum.TryParse`, which also
-  accepts numbers and flag combinations.
+  accepts numbers and flag combinations. This is the string form [0020](0020-missing-value-fields-are-required.md)
+  rejected for bodies — there System.Text.Json already refuses numbers for an enum by name, so the enum keeps the
+  document precise; in a query string the enum would be the looser option.
 - A list bounded by what a person keeps (an address book, tens of rows) may stay a plain array; the endpoint's ADR
   says so.
 
