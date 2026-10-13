@@ -17,7 +17,7 @@ internal sealed class QueryValuesTransformer : IOpenApiOperationTransformer
         {
             if (description.ParameterDescriptor is not IParameterInfoParameterDescriptor { ParameterInfo: var info }
                 || info.GetCustomAttribute<QueryValuesAttribute>() is not { } values
-                || operation.Parameters?.FirstOrDefault(p => p.Name == description.Name)?.Schema is not OpenApiSchema schema)
+                || operation.Parameters?.FirstOrDefault(p => p.In == ParameterLocation.Query && p.Name == description.Name)?.Schema is not OpenApiSchema schema)
             {
                 continue;
             }
