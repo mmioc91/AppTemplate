@@ -142,4 +142,67 @@ public sealed class ApiHostTests(PostgresFixture postgres)
         // Assert
         Should.Throw<JsonException>(act);
     }
+
+    [Theory]
+    [InlineData("\"2026-06-14T10:00:00Z\"", 0)]
+    [InlineData("\"2026-06-14T12:00:00+02:00\"", 2)]
+    public async Task HttpJson_InstantWithAnOffset_IsThatInstant(string json, int offsetHours)
+    {
+        // Arrange
+        await using ApiFactory factory = new(postgres);
+        JsonSerializerOptions options = factory.Services.GetRequiredService<IOptions<HttpJsonOptions>>().Value.SerializerOptions;
+
+        // Act
+        DateTimeOffset? instant = JsonSerializer.Deserialize<DateTimeOffset?>(json, options);
+
+        // Assert
+        instant.ShouldBe(new DateTimeOffset(2026, 6, 14, 10 + offsetHours, 0, 0, TimeSpan.FromHours(offsetHours)));
+        instant!.Value.Offset.ShouldBe(TimeSpan.FromHours(offsetHours));
+    }
+
+    [Theory]
+    [InlineData("\"2026-06-14T10:00:00\"")]
+    [InlineData("\"2026-06-14\"")]
+    [InlineData("\"tomorrow\"")]
+    [InlineData("1781431200")]
+    public async Task HttpJson_InstantWithoutAnOffset_IsRejected(string json)
+    {
+        // Arrange: it would otherwise be read in the server's time zone (ADR 0027).
+        await using ApiFactory factory = new(postgres);
+        JsonSerializerOptions options = factory.Services.GetRequiredService<IOptions<HttpJsonOptions>>().Value.SerializerOptions;
+
+        // Act
+        Action act = () => JsonSerializer.Deserialize<DateTimeOffset?>(json, options);
+
+        // Assert
+        Should.Throw<JsonException>(act);
+    }
+
+    [Fact]
+    public async Task HttpJson_InstantNull_StaysNull()
+    {
+        // Arrange
+        await using ApiFactory factory = new(postgres);
+        JsonSerializerOptions options = factory.Services.GetRequiredService<IOptions<HttpJsonOptions>>().Value.SerializerOptions;
+
+        // Act
+        DateTimeOffset? instant = JsonSerializer.Deserialize<DateTimeOffset?>("null", options);
+
+        // Assert
+        instant.ShouldBeNull();
+    }
+
+    [Fact]
+    public async Task HttpJson_NumberAsString_IsRejected()
+    {
+        // Arrange: the Web defaults would read "21" as 21, and the OpenAPI schema would say integer|string (ADR 0027).
+        await using ApiFactory factory = new(postgres);
+        JsonSerializerOptions options = factory.Services.GetRequiredService<IOptions<HttpJsonOptions>>().Value.SerializerOptions;
+
+        // Act
+        Action act = () => JsonSerializer.Deserialize<int>("\"21\"", options);
+
+        // Assert
+        Should.Throw<JsonException>(act);
+    }
 }

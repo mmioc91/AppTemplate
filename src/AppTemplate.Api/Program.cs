@@ -2,6 +2,8 @@ using System.Text.Json.Serialization;
 using AppTemplate.Api;
 using AppTemplate.Api.Errors;
 using AppTemplate.Api.Health;
+using AppTemplate.Api.Json;
+using AppTemplate.Api.OpenApi;
 using AppTemplate.Application;
 using AppTemplate.Infrastructure;
 using Asp.Versioning;
@@ -17,8 +19,14 @@ builder.Services.AddInfrastructure(builder.Configuration);
 builder.Services.AddApiProblemDetails();
 
 // Enums travel as names only, which the frontend switches on; a number is rejected, not taken as an undefined value.
+// An instant without an offset is rejected too, not read in the server's time zone, and a number is a JSON number,
+// never "21" — so the OpenAPI schemas say integer, not integer|string (ADR 0027).
 builder.Services.ConfigureHttpJsonOptions(options =>
-    options.SerializerOptions.Converters.Add(new JsonStringEnumConverter(allowIntegerValues: false)));
+{
+    options.SerializerOptions.NumberHandling = JsonNumberHandling.Strict;
+    options.SerializerOptions.Converters.Add(new JsonStringEnumConverter(allowIntegerValues: false));
+    options.SerializerOptions.Converters.Add(new StrictInstantConverter());
+});
 
 builder.Services
     .AddApiVersioning(options =>
@@ -32,7 +40,11 @@ builder.Services
         options.SubstituteApiVersionInUrl = true;
     })
     // One OpenAPI document per version (/openapi/v1.json); a typed frontend client is generated from it (ADR 0009).
-    .AddOpenApi();
+    // String query parameters with fixed values list them ([QueryValues]); instants and enums get the types the
+    // generated client needs (ADR 0027).
+    .AddOpenApi(options => options.Document
+        .AddOperationTransformer<QueryValuesTransformer>()
+        .AddSchemaTransformer<ClientTypesTransformer>());
 
 WebApplication app = builder.Build();
 
