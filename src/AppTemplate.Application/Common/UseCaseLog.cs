@@ -4,7 +4,8 @@ namespace AppTemplate.Application.Common;
 
 // What the logging decorators write about one use case (ADR 0028): its name, how long it took and how it ended —
 // never its input, which may hold personal data. A failure is its error code; an exception only its type (the
-// exception itself is logged where it is handled).
+// exception itself is logged where it is handled). A cancelled request (the client went away) is nobody's failure
+// and leaves no entry.
 internal static partial class UseCaseLog
 {
     public static async Task<Result> RunAsync(ILogger logger, TimeProvider timeProvider, string useCase, Func<Task<Result>> handle)
@@ -17,7 +18,7 @@ internal static partial class UseCaseLog
             Report(logger, useCase, result.Error, timeProvider.GetElapsedTime(started).TotalMilliseconds);
             return result;
         }
-        catch (Exception exception)
+        catch (Exception exception) when (exception is not OperationCanceledException)
         {
             Threw(logger, useCase, exception.GetType().Name, timeProvider.GetElapsedTime(started).TotalMilliseconds);
             throw;
@@ -35,7 +36,7 @@ internal static partial class UseCaseLog
             Report(logger, useCase, result.Error, timeProvider.GetElapsedTime(started).TotalMilliseconds);
             return result;
         }
-        catch (Exception exception)
+        catch (Exception exception) when (exception is not OperationCanceledException)
         {
             Threw(logger, useCase, exception.GetType().Name, timeProvider.GetElapsedTime(started).TotalMilliseconds);
             throw;

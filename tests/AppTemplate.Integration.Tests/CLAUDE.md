@@ -39,8 +39,10 @@ tests and Api-level functional tests.
   the rest of the Infrastructure setup, so the tests would run against a different model than production.
 - **Error-mapping tests don't need a server:** `Api/ProblemResponse` writes through the real ProblemDetails setup on a
   `DefaultHttpContext` and reads back the JSON.
-- **`ApiHostTests`** pins host-wide behavior (health, JSON options, OpenAPI document, framework error codes). Every new
-  endpoint gets a row pinning the statuses it declares in the OpenAPI document (ADR 0009). `OpenApiContractTests`
+- **`ApiHostTests`** pins host-wide behavior (health, JSON options, OpenAPI document, framework error codes, the
+  `traceId` continued from a caller's `traceparent`, the forwarded-headers options). Every new endpoint gets a row
+  pinning the statuses it declares in the OpenAPI document (ADR 0009). A middleware that only looks at the request
+  (`UnmatchedRoutesTests`) is tested on a `DefaultHttpContext` through a one-middleware `ApplicationBuilder`. `OpenApiContractTests`
   runs the rules in `OpenApiContract` over the whole live document for the generated client's sake (ADR 0027) — with
   no endpoint yet it has nothing to find, so `OpenApiContractRulesTests` proves each rule on a hand-written document;
   the first endpoint makes the live run real.

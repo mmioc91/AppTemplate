@@ -86,9 +86,9 @@ public sealed class ApiHostTests(PostgresFixture postgres)
     }
 
     [Fact]
-    public async Task ForwardedHeaders_KnownNetworksConfigured_TrustsOnlyThoseProxies()
+    public async Task ForwardedHeaders_KnownNetworksConfigured_TrustsThemNextToLoopback()
     {
-        // Arrange: the reverse proxy's network (ADR 0029).
+        // Arrange: the reverse proxy's network (ADR 0029); loopback stays trusted, as ASP.NET Core does by default.
         await using ApiFactory factory = new(postgres, settings: new Dictionary<string, string> { [ProxySetup.KnownNetworksKey] = "172.20.0.0/16, 10.0.0.0/8" });
 
         // Act

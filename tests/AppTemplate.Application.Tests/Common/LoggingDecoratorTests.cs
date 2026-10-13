@@ -81,6 +81,20 @@ public class LoggingDecoratorTests
     }
 
     [Fact]
+    public async Task HandleAsync_Cancelled_IsRethrownWithoutAnEntry()
+    {
+        // Arrange: the client went away; that is nobody's failure.
+        _inner.HandleAsync(Arg.Any<SecretCommand>(), Arg.Any<CancellationToken>()).ThrowsAsync(new OperationCanceledException());
+
+        // Act
+        Func<Task> act = () => Decorator().HandleAsync(new SecretCommand(Street), CancellationToken.None);
+
+        // Assert
+        await Should.ThrowAsync<OperationCanceledException>(act);
+        _logger.Collector.Count.ShouldBe(0);
+    }
+
+    [Fact]
     public async Task HandleAsync_Failure_NeverLogsTheInputOrTheErrorMessage()
     {
         // Arrange
@@ -90,12 +104,14 @@ public class LoggingDecoratorTests
         // Act
         await Decorator().HandleAsync(new SecretCommand(Street), CancellationToken.None);
 
-        // Assert
-        _logger.Collector.GetSnapshot().ShouldAllBe(r => !r.Message.Contains(Street));
+        // Assert: neither the rendered message nor any structured value carries the input.
+        IReadOnlyList<FakeLogRecord> records = _logger.Collector.GetSnapshot();
+        records.ShouldAllBe(r => !r.Message.Contains(Street));
+        records.SelectMany(r => r.StructuredState ?? []).ShouldAllBe(pair => pair.Value == null || !pair.Value.Contains(Street));
     }
 
     [Fact]
-    public async Task HandleAsync_PassesTheCommandAndTokenThrough()
+    public async Task HandleAsync_ValidCommand_PassesItAndTheTokenThrough()
     {
         // Arrange
         using CancellationTokenSource cancellation = new();

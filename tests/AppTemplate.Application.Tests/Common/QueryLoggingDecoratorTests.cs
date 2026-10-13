@@ -14,7 +14,7 @@ public class QueryLoggingDecoratorTests
     public sealed record SomeQuery(int Page);
 
     [Fact]
-    public async Task HandleAsync_LogsTheQuerysNameAndReturnsTheInnerResult()
+    public async Task HandleAsync_Query_LogsItsNameAndReturnsTheInnerResult()
     {
         // Arrange
         IQueryHandler<SomeQuery, string> inner = Substitute.For<IQueryHandler<SomeQuery, string>>();
