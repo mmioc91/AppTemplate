@@ -15,6 +15,13 @@ updates:
     open-pull-requests-limit: 5
     commit-message:
       prefix: "chore(deps)"
+    ignore:
+      # Angular decides which TypeScript it builds with: a major comes with an Angular update (`ng update`), never alone.
+      - dependency-name: "typescript"
+        update-types: ["version-update:semver-major"]
+      # The types follow the Node the app is built with (node:22 in ci-web.yml and the web image), not the newest Node.
+      - dependency-name: "@types/node"
+        update-types: ["version-update:semver-major"]
 
   - package-ecosystem: github-actions
     directory: "/"
