@@ -25,6 +25,9 @@ jobs:
   # Named apart from the backend-ci build-test job: branch protection matches required checks by job name, and this
   # job is path-filtered, so it must never be a required one (a PR without web changes would wait for it forever).
   web-build-test:
+    # A change to this workflow runs it too; without a web/ folder yet there is nothing to build, so the job skips
+    # instead of failing on npm ci.
+    if: hashFiles('web/package.json') != ''
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
