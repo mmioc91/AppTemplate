@@ -61,7 +61,11 @@ public static class DependencyInjection
     // reaches every environment with its schema (ADR 0031). Only on a database at the latest migration: a migration
     // reverted (`database update 0`, `migrations remove`) or stopped short of the last one has no table the seed may
     // expect.
-    internal static DbContextOptionsBuilder Configure(DbContextOptionsBuilder options, string connectionString) =>
+    // `roles` stands in for RoleSeed.All in tests, so they can see the hook seed a row through Migrate.
+    internal static DbContextOptionsBuilder Configure(
+        DbContextOptionsBuilder options,
+        string connectionString,
+        Func<IReadOnlyList<IdentityRole<Guid>>>? roles = null) =>
         options
             .UseNpgsql(connectionString, npgsql => npgsql.EnableRetryOnFailure())
             .UseSnakeCaseNamingConvention()
@@ -69,14 +73,14 @@ public static class DependencyInjection
             {
                 if (!db.Database.GetPendingMigrations().Any())
                 {
-                    RoleSeeder.Seed(db, RoleSeed.All());
+                    RoleSeeder.Seed(db, (roles ?? RoleSeed.All)());
                 }
             })
             .UseAsyncSeeding(async (db, _, cancellationToken) =>
             {
                 if (!(await db.Database.GetPendingMigrationsAsync(cancellationToken)).Any())
                 {
-                    await RoleSeeder.SeedAsync(db, RoleSeed.All(), cancellationToken);
+                    await RoleSeeder.SeedAsync(db, (roles ?? RoleSeed.All)(), cancellationToken);
                 }
             });
 

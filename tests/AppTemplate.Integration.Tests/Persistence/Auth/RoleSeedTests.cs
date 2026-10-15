@@ -17,8 +17,7 @@ namespace AppTemplate.Integration.Tests.Persistence.Auth;
 [Collection(PostgresCollection.Name)]
 public sealed class RoleSeedTests(PostgresFixture postgres)
 {
-    private static readonly IdentityRole<Guid> Probe =
-        new("Probe") { Id = Guid.Parse("01a1231c-0000-7000-8000-0000000001ff"), NormalizedName = "PROBE" };
+    private static readonly Guid ProbeId = Guid.Parse("01a1231c-0000-7000-8000-0000000001ff");
 
     [Fact]
     public async Task Migrate_EmptyDatabase_SeedsExactlyTheRolesOfTheSeed()
@@ -63,6 +62,32 @@ public sealed class RoleSeedTests(PostgresFixture postgres)
     }
 
     [Fact]
+    public async Task MigrateAsync_EmptyDatabase_SeedsThroughTheGuardedHook()
+    {
+        // Arrange: the real hook (DependencyInjection.Configure) with a test-only row in place of RoleSeed.
+        await using AppDbContext db = ContextSeeding(await postgres.CreateEmptyDatabaseAsync());
+
+        // Act
+        await db.Database.MigrateAsync();
+
+        // Assert
+        (await db.Roles.AsNoTracking().AnyAsync(role => role.Id == ProbeId)).ShouldBeTrue();
+    }
+
+    [Fact]
+    public async Task Migrate_EmptyDatabase_SeedsThroughTheGuardedSynchronousHook()
+    {
+        // Arrange: the path `dotnet ef database update` takes.
+        await using AppDbContext db = ContextSeeding(await postgres.CreateEmptyDatabaseAsync());
+
+        // Act: on a thread of its own, as the synchronous tool runs it.
+        await Task.Run(() => db.Database.Migrate());
+
+        // Assert
+        (await db.Roles.AsNoTracking().AnyAsync(role => role.Id == ProbeId)).ShouldBeTrue();
+    }
+
+    [Fact]
     public async Task SeedAsync_Twice_InsertsEachRoleOnceAndRewritesNone()
     {
         // Arrange
@@ -75,7 +100,7 @@ public sealed class RoleSeedTests(PostgresFixture postgres)
         await SeedAsync(services);
 
         // Assert: a re-inserted or rewritten role would carry a new concurrency stamp.
-        stampsAfterFirstRun.Keys.ShouldContain(Probe.Id);
+        stampsAfterFirstRun.Keys.ShouldContain(ProbeId);
         (await ReadStampsAsync(services)).ShouldBe(stampsAfterFirstRun);
     }
 
@@ -89,11 +114,11 @@ public sealed class RoleSeedTests(PostgresFixture postgres)
         // Act
         await using (AsyncServiceScope scope = services.CreateAsyncScope())
         {
-            RoleSeeder.Seed(scope.ServiceProvider.GetRequiredService<AppDbContext>(), [Probe]);
+            RoleSeeder.Seed(scope.ServiceProvider.GetRequiredService<AppDbContext>(), [Probe()]);
         }
 
         // Assert
-        (await ReadRolesAsync(services)).Select(role => role.Id).ShouldContain(Probe.Id);
+        (await ReadRolesAsync(services)).Select(role => role.Id).ShouldContain(ProbeId);
     }
 
     [Fact]
@@ -116,6 +141,32 @@ public sealed class RoleSeedTests(PostgresFixture postgres)
         (await ReadRolesAsync(services)).Count.ShouldBe(RoleSeed.All().Count);
     }
 
+    [Fact]
+    public async Task MigrateToZero_ThenMigrateAgain_SeedsTheRowsAgain()
+    {
+        // Arrange
+        await using AppDbContext db = ContextSeeding(await postgres.CreateEmptyDatabaseAsync());
+        await db.Database.MigrateAsync();
+
+        // Act
+        await db.GetService<IMigrator>().MigrateAsync("0");
+        await db.Database.MigrateAsync();
+
+        // Assert
+        (await db.Roles.AsNoTracking().AnyAsync(role => role.Id == ProbeId)).ShouldBeTrue();
+    }
+
+    // A fresh instance per call, with its own concurrency stamp, as RoleSeed.All() gives: a seeder that rewrote an
+    // existing row would store a new stamp, and the comparison above would go red.
+    private static IdentityRole<Guid> Probe() => new("Probe") { Id = ProbeId, NormalizedName = "PROBE" };
+
+    private static AppDbContext ContextSeeding(string connectionString)
+    {
+        DbContextOptionsBuilder<AppDbContext> options = new();
+        DependencyInjection.Configure(options, connectionString, () => [Probe()]);
+        return new AppDbContext(options.Options);
+    }
+
     private static async Task MigrateAsync(ServiceProvider services)
     {
         await using AsyncServiceScope scope = services.CreateAsyncScope();
@@ -125,7 +176,7 @@ public sealed class RoleSeedTests(PostgresFixture postgres)
     private static async Task SeedAsync(ServiceProvider services)
     {
         await using AsyncServiceScope scope = services.CreateAsyncScope();
-        await RoleSeeder.SeedAsync(scope.ServiceProvider.GetRequiredService<AppDbContext>(), [Probe], CancellationToken.None);
+        await RoleSeeder.SeedAsync(scope.ServiceProvider.GetRequiredService<AppDbContext>(), [Probe()], CancellationToken.None);
     }
 
     private static async Task<List<IdentityRole<Guid>>> ReadRolesAsync(ServiceProvider services)

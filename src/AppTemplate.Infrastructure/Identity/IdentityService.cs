@@ -39,9 +39,20 @@ internal sealed class IdentityService(UserManager<ApplicationUser> users, AppDbC
 
         try
         {
-            // User and role row in one transaction, inside the retrying strategy as EF requires.
+            // User and role row in one transaction, inside the retrying strategy as EF requires. A retry first asks
+            // whether the attempt before it committed after all (only its acknowledgement was lost): the id is ours,
+            // fresh, so a row with it is our own user, role row included — created, nothing more to write.
             IExecutionStrategy strategy = db.Database.CreateExecutionStrategy();
-            return await strategy.ExecuteAsync(() => CreateInTransactionAsync(user, password, role, cancellationToken));
+            int attempt = 0;
+            return await strategy.ExecuteAsync(async () =>
+            {
+                if (++attempt > 1 && await db.Users.AsNoTracking().AnyAsync(existing => existing.Id == id, cancellationToken))
+                {
+                    return CreateUserOutcome.Created;
+                }
+
+                return await CreateInTransactionAsync(user, password, role, cancellationToken);
+            });
         }
         catch (DbUpdateException exception) when (exception.IsUniqueViolation())
         {
@@ -109,8 +120,9 @@ internal sealed class IdentityService(UserManager<ApplicationUser> users, AppDbC
         string? role,
         CancellationToken cancellationToken)
     {
-        // A retried attempt starts from what the database holds: the rolled-back attempt left the user and its role row
-        // tracked as saved, and Identity would take the role row for one that exists (UserAlreadyInRole).
+        // A retried attempt that found no row of ours starts from what the database holds: the rolled-back attempt left
+        // the user and its role row tracked as saved, and Identity would take the role row for one that exists
+        // (UserAlreadyInRole).
         ForgetTrackedRows(user);
 
         await using IDbContextTransaction transaction = await db.Database.BeginTransactionAsync(cancellationToken);

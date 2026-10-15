@@ -78,7 +78,9 @@ display name with a control character (Postgres refuses a NUL in text with an er
 Register, login and refresh are rate-limited per client — 10 a minute for register and login, 60 for refresh,
 because every start of a web app spends one and an office shares an IP — and answer 429 `TOO_MANY_REQUESTS` with
 `Retry-After`. A client is its IPv4 address (also when a dual-stack socket reports it IPv6-mapped) or its IPv6 /64,
-since one host is usually given a whole /64 and could take a fresh address per request
+since one host can take a fresh address of its /64 per request. A subscriber delegated a /56 or /48 can still spread
+requests over its /64s, as a client with many IPv4 addresses can — accepted: the lockout bounds guessing at one
+account, and stopping credential stuffing across accounts takes more than an IP window
 ([0026](0026-unauthorized-kind-and-too-many-requests-code.md)); the limiter runs after authentication, so a later
 policy can count per account. `AUTH_EMAIL_TAKEN` (409) on register still reveals existence — accepted until email
 confirmation exists.

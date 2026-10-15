@@ -67,7 +67,8 @@ See root `CLAUDE.md` for cross-cutting rules.
   `ICurrentUser` (`CurrentUser`, the principal's `sub` claim), **never** from the request body. A role-based policy is
   named in a static class (`AuthPolicies`), built on `Roles` in `AuthenticationSetup` (`RequireRole`) and required on a
   route group (`RequireAuthorization(AuthPolicies.X)`), which then declares 403 too. Every rate-limit policy (a fixed
-  window per client: its IPv4 address, or its IPv6 /64 — `ApiRateLimiting.ClientKey`) is registered in
+  window per client: its IPv4 address, or its IPv6 /64 — `ApiRateLimiting.ClientKey`; a delegated /56 can still
+  spread over its /64s, ADR 0031) is registered in
   `ApiRateLimiting`, and the limiter runs **after authentication** so a policy
   can count per account: register and login carry `.RequireRateLimiting(AuthRateLimiting.PolicyName)`, refresh its
   own `RefreshPolicyName`; a later endpoint that mails someone or tells whether an address has an account (password

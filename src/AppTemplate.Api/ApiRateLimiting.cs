@@ -15,7 +15,9 @@ internal static class ApiRateLimiting
 {
     private const string UnknownClient = "unknown";
 
-    // The network part of an IPv6 address that names one subscriber: a /64.
+    // The network part of an IPv6 address that names one network (a LAN, a host): a /64. A subscriber is often
+    // delegated a /56 or /48, so it can spread requests over many /64s, as a client with many IPv4 addresses can; the
+    // lockout bounds guessing at one account, and stopping stuffing across accounts takes more than an IP window.
     private const int Ipv6PrefixBytes = 8;
 
     public static IServiceCollection AddApiRateLimiting(this IServiceCollection services) =>
@@ -49,8 +51,8 @@ internal static class ApiRateLimiting
                 }));
 
     // Who a client is, for its window. An IPv4 address as it is — also when a dual-stack socket reports it IPv6-mapped,
-    // so ::ffff:203.0.113.7 and 203.0.113.7 share one window. An IPv6 address by its /64: one host is usually given a
-    // whole /64 and can pick a fresh address for every request, so a window per address would never fill.
+    // so ::ffff:203.0.113.7 and 203.0.113.7 share one window. An IPv6 address by its /64: one host can pick a fresh
+    // address of its /64 for every request, so a window per address would never fill.
     internal static string ClientKey(IPAddress? address)
     {
         if (address is null)

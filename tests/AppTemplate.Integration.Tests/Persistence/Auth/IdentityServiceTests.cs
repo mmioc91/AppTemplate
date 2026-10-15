@@ -128,6 +128,29 @@ public sealed class IdentityServiceTests(PostgresFixture postgres)
     }
 
     [Fact]
+    public async Task CreateUser_WithARoleWhenTheFirstCommitsAcknowledgementIsLost_IsCreatedOnce()
+    {
+        // Arrange: the commit reaches Postgres, its answer doesn't — the retry finds the user already there (ADR 0013).
+        LoseFirstCommitAcknowledgement failure = new();
+        await using ServiceProvider services = postgres.CreateServices(serviceCollection =>
+        {
+            AuthServices.Configure(serviceCollection);
+            serviceCollection.ConfigureDbContext<AppDbContext>(options => options.AddInterceptors(failure));
+        });
+        await EnsureRoleAsync(services, Tester);
+        var id = Guid.CreateVersion7();
+        failure.Arm();
+
+        // Act
+        CreateUserOutcome outcome = await CreateAsync(services, id, $"user-{id:N}@example.com", role: Tester);
+
+        // Assert
+        failure.Fired.ShouldBeTrue();
+        outcome.ShouldBe(CreateUserOutcome.Created);
+        (await RolesAsync(services, id)).ShouldBe([Tester]);
+    }
+
+    [Fact]
     public async Task CreateUser_OwnRowAlreadyThere_IsCreated()
     {
         // Arrange: what a retried commit looks like — the row with our id exists before the insert runs, so the insert
@@ -448,6 +471,32 @@ public sealed class IdentityServiceTests(PostgresFixture postgres)
         {
             VerifiedHashes.Add(hashedPassword);
             return _inner.VerifyHashedPassword(user, hashedPassword, providedPassword);
+        }
+    }
+
+    // Loses the answer to the first commit after Arm(): the transaction is committed, then the connection reports a
+    // transient error, as a connection dropped between the commit and its acknowledgement does.
+    private sealed class LoseFirstCommitAcknowledgement : DbTransactionInterceptor
+    {
+        private bool _armed;
+
+        public bool Fired { get; private set; }
+
+        public void Arm() => _armed = true;
+
+        public override Task TransactionCommittedAsync(
+            DbTransaction transaction,
+            TransactionEndEventData eventData,
+            CancellationToken cancellationToken = default)
+        {
+            if (_armed)
+            {
+                _armed = false;
+                Fired = true;
+                throw new NpgsqlException("Simulated lost acknowledgement of a commit.", new TimeoutException());
+            }
+
+            return Task.CompletedTask;
         }
     }
 
