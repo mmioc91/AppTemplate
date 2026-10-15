@@ -61,10 +61,13 @@ Don't flag anything the build already enforces (analyzers, `.editorconfig` error
   complex types, converters registered in `ConfigureConventions`, no `ExecuteUpdate`/`ExecuteDelete` on aggregates,
   no `AddDbContextPool`, no hand-named indexes/constraints, explicit transactions inside the execution strategy.
 - A write that can hit a unique index handles `UniqueConstraintViolationException` ("is it my own row?").
-- A model change comes with its migration in the same change; migrations are never hand-edited.
+- A model change comes with its migration in the same change; migrations are never hand-edited. Reference data is
+  seeded by a seeder in the seeding hook (`RoleSeeder` is the pattern), never `HasData`.
 
 ### Api
 - Every new endpoint declares its error statuses and a `WithName`, and has a row in `ApiHostTests` pinning them.
+- A new endpoint is protected by the fallback policy (ADR 0031): `.AllowAnonymous()` only with a comment saying why,
+  and a rate limit if it is a way in or tells whether an account exists; it declares 401, and 403 under a policy.
 - New Options classes are bound in `Program.cs` with `ValidateOnStart`.
 
 ### Tests

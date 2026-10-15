@@ -18,8 +18,8 @@ See root `CLAUDE.md` for cross-cutting rules.
   is replaced. Unexpected → 500 without details. No message ever reaches the client — no `detail`; messages go to the
   log. No `try/catch` in endpoints.
 - **Actions on an aggregate** (`POST …/{id}/archive`, ADR 0023) answer **204** from a `Result`, declare
-  404/409/422 (and 401/403 once auth exists), repeat as a no-op once answered, and answer 409 `CONCURRENCY_CONFLICT`
-  to a concurrent change.
+  401/404/409/422 (and 403 under a role policy), repeat as a no-op once answered, and answer 409
+  `CONCURRENCY_CONFLICT` to a concurrent change.
 - **Options:** every Options class is bound here, in `Program.cs` (`AddOptions<T>().Bind(section).ValidateOnStart()`)
   — Application only registers defaults, so an unbound one silently ignores its configuration.
 - **JSON (ADR 0027):** camelCase (Minimal API default — `ErrorResults` relies on it, a test guards it), enums by name
@@ -59,13 +59,22 @@ See root `CLAUDE.md` for cross-cutting rules.
 - **DTOs:** `XxxRequest` (input), `XxxResponse` (single result), `XxxListItem` (list row); flat, shaped for the
   screen; never a serialized aggregate. Lists that can grow return `PagedList<T>` as `{ items, total, page, pageSize }`
   (ADR 0022); `page`/`pageSize` bind through nullable query parameters and are validated in Application.
-- **Auth:** not wired yet — the scheme (cookie vs JWT) is an open question in `docs/decisions/README.md`. Whichever it
-  is: the current user's id comes from the authenticated principal through an `ICurrentUser`-style port, **never**
-  from the request body; prefer a fallback policy that requires authentication on every endpoint and mark the
-  exceptions with `.AllowAnonymous()` (`/health/*` and OpenAPI already are). `UseNotFoundForUnmatchedRoutes()` already
-  runs before authorization, so a fallback policy keeps unknown routes at 404 instead of 401 (ADR 0018, 0029) — but
-  only if `UseAuthentication()`/`UseAuthorization()` are called explicitly at the placeholder in `Program.cs`:
-  registered without the calls, `WebApplication` inserts them ahead of every user middleware and the 401 wins again.
+- **Auth (ADR 0031), wired in `Auth/`:** JWT bearer validated against `JwtOptions`; a **fallback policy** requires a
+  signed-in user on every endpoint — a new endpoint is protected by doing nothing, and only an explicit
+  `.AllowAnonymous()` opens one (`/health/*`, OpenAPI, register/login/refresh), with a comment saying why.
+  `AuthenticationTests` walks the endpoint table and fails if an unmarked endpoint answers an anonymous call. The
+  current user comes from
+  `ICurrentUser` (`CurrentUser`, the principal's `sub` claim), **never** from the request body. A role-based policy is
+  named in a static class (`AuthPolicies`), built on `Roles` in `AuthenticationSetup` (`RequireRole`) and required on a
+  route group (`RequireAuthorization(AuthPolicies.X)`), which then declares 403 too. Every rate-limit policy (a fixed
+  window per client IP) is registered in `ApiRateLimiting`, and the limiter runs **after authentication** so a policy
+  can count per account: register and login carry `.RequireRateLimiting(AuthRateLimiting.PolicyName)`, refresh its
+  own `RefreshPolicyName`; a later endpoint that mails someone or tells whether an address has an account (password
+  reset, invitations) gets a policy of its own. Token lifetimes run on the host's `TimeProvider`, so an integration test expires tokens with a
+  `FakeTimeProvider` through `ApiFactory`. Gotcha: the fallback policy also covers requests that matched no endpoint —
+  `UseNotFoundForUnmatchedRoutes()` runs before authorization to keep unknown routes at 404 (ADR 0018, 0029), and
+  `UseAuthentication()`/`UseAuthorization()` are called explicitly after it: registered without the calls,
+  `WebApplication` inserts them ahead of every user middleware and the 401 wins again.
 
 ## Tests
 See `tests/AppTemplate.Integration.Tests/CLAUDE.md`.

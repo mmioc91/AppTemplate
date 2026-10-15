@@ -39,23 +39,12 @@ the code implements it and every choice that had to be made along the way.
 | 0028 | [Logs are the built-in logging, JSON lines in production, tied to errors by the W3C trace id](0028-logging-and-the-trace-id.md) | Accepted | 2026-10-13 |
 | 0029 | [Hosting: one origin behind a reverse proxy, migrations as a deploy step](0029-hosting-behind-a-proxy-with-migrations-as-a-deploy-step.md) | Accepted | 2026-10-13 |
 | 0030 | [No Idempotency-Key for creates until a client retries them automatically](0030-no-idempotency-key-until-a-client-retries-creates.md) | Accepted | 2026-10-13 |
+| 0031 | [Authentication: ASP.NET Core Identity with JWT bearer tokens](0031-identity-with-jwt-bearer-tokens.md) | Accepted | 2026-10-14 |
 
 ## Open questions
 
 Not decided yet. When one is settled, it becomes a new ADR and is removed from this list.
 
-- **Authentication scheme: cookie or JWT?** Decide with the first project that has users. An SPA served from the same
-  origin as the Api is simplest with ASP.NET Identity + an httpOnly `__Host-` cookie (`SameSite=Lax`, JSON-only bodies
-  as CSRF protection; no token storage in the browser); a mobile app, a live hub on another origin or a third-party
-  API client needs bearer tokens (JWT with a rotating, hashed refresh token). Both have been built from this
-  template and work. Either way: the user's id comes from the authenticated principal through an `ICurrentUser`
-  port, never from the request; a fallback policy requires authentication everywhere and exceptions are marked
-  `.AllowAnonymous()` (`UseNotFoundForUnmatchedRoutes` keeps unknown routes at 404); wrong password, unknown user and
-  lockout answer the same 401 code ([0026](0026-unauthorized-kind-and-too-many-requests-code.md)); every refusal
-  costs one password hash so timing reveals nothing; passwords have a minimum length and no composition rules;
-  Identity's tables live in `AppDbContext`, renamed to snake_case, with a unique index on the normalized e-mail; a
-  host test walks the endpoint table and fails if an unmarked endpoint lets an anonymous call through. With cookies,
-  Data Protection keys go to the database and need encrypting at rest before production.
 - **Multi-tenancy.** If the product has tenants (workspaces, organizations): every aggregate root carries the tenant
   id; isolation is a *named* global EF query filter fed by a scoped `ITenantContext` the Api fills on every request
   from the signed-in user's membership — never a tenant id from the request or a claim, never a hand-written

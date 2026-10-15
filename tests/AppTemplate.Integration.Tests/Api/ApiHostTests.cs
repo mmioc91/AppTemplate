@@ -8,6 +8,7 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
 using Microsoft.Extensions.Time.Testing;
 using Shouldly;
@@ -39,6 +40,23 @@ public sealed class ApiHostTests(PostgresFixture postgres)
         // Assert
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
         (await response.Content.ReadAsStringAsync()).ShouldBe("Healthy");
+    }
+
+    [Fact]
+    public async Task Health_UnmigratedDatabaseInProduction_LiveIs200ButReadyIs503()
+    {
+        // Arrange: production never migrates on startup, so a deploy that skipped the migration step must stay out of
+        // rotation without being restarted (ADR 0019, 0029).
+        await using ApiFactory factory = new(await postgres.CreateEmptyDatabaseAsync(), Environments.Production);
+        using HttpClient client = factory.CreateClient();
+
+        // Act
+        HttpResponseMessage live = await client.GetAsync(new Uri(HealthEndpoints.Live, UriKind.Relative));
+        HttpResponseMessage ready = await client.GetAsync(new Uri(HealthEndpoints.Ready, UriKind.Relative));
+
+        // Assert
+        live.StatusCode.ShouldBe(HttpStatusCode.OK);
+        ready.StatusCode.ShouldBe(HttpStatusCode.ServiceUnavailable);
     }
 
     [Fact]
@@ -132,6 +150,28 @@ public sealed class ApiHostTests(PostgresFixture postgres)
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
         using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
         document.RootElement.TryGetProperty("openapi", out _).ShouldBeTrue();
+    }
+
+    // Every endpoint declares exactly the statuses a client can meet (ADR 0009): one row per endpoint, added with it.
+    [Theory]
+    [InlineData("/api/v1/auth/register", "post", new[] { "201", "400", "409", "429" })]
+    [InlineData("/api/v1/auth/login", "post", new[] { "200", "400", "401", "429" })]
+    [InlineData("/api/v1/auth/refresh", "post", new[] { "200", "400", "401", "429" })]
+    [InlineData("/api/v1/auth/logout", "post", new[] { "204", "400", "401" })]
+    [InlineData("/api/v1/auth/me", "get", new[] { "200", "401", "404" })]
+    public async Task OpenApiDocument_Endpoint_DeclaresExactlyTheseStatuses(string path, string method, string[] statuses)
+    {
+        // Arrange
+        await using ApiFactory factory = new(postgres);
+        using HttpClient client = factory.CreateClient();
+
+        // Act
+        HttpResponseMessage response = await client.GetAsync(new Uri("/openapi/v1.json", UriKind.Relative));
+
+        // Assert
+        using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        JsonElement operation = document.RootElement.GetProperty("paths").GetProperty(path).GetProperty(method);
+        operation.GetProperty("responses").EnumerateObject().Select(status => status.Name).ShouldBe(statuses, ignoreOrder: true);
     }
 
     [Fact]

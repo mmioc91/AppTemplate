@@ -1,3 +1,7 @@
+using AppTemplate.Application.Abstractions;
+using AppTemplate.Application.Auth;
+using AppTemplate.Application.Auth.GetCurrentUser;
+using AppTemplate.Application.Auth.Register;
 using AppTemplate.Application.Common;
 using AppTemplate.Application.Tests.Samples;
 using Microsoft.Extensions.DependencyInjection;
@@ -85,6 +89,10 @@ public class DependencyInjectionTests
         commands.ShouldContain(typeof(ICommandHandler<CreateSample, Guid>));
         commands.ShouldContain(typeof(ICommandHandler<RenameSample>));
         queries.ShouldContain(typeof(IQueryHandler<GetSample, string>));
+
+        // Application's own use cases are found by the same scan.
+        commands.ShouldContain(typeof(ICommandHandler<RegisterCommand, TokenPairResponse>));
+        queries.ShouldContain(typeof(IQueryHandler<GetCurrentUserQuery, CurrentUserResponse>));
     }
 
     [Fact]
@@ -186,6 +194,11 @@ public class DependencyInjectionTests
         services.AddApplication();
         services.AddUseCases(typeof(DependencyInjectionTests).Assembly);
         services.AddSingleton(store);
+
+        // The ports the auth use cases need (ADR 0031).
+        services.AddSingleton(Substitute.For<IIdentityService>());
+        services.AddSingleton(Substitute.For<ITokenService>());
+        services.AddSingleton(Substitute.For<ICurrentUser>());
         return services;
     }
 
