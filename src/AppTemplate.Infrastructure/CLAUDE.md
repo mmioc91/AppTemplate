@@ -74,13 +74,19 @@ See root `CLAUDE.md` for cross-cutting rules.
   our configurations are applied, so foreign keys are named after `users`; the e-mail index is made unique there.
   `Identity/` holds the user, the `refresh_tokens` entity and the two auth ports (`IdentityService` on `UserManager`,
   `TokenService` for JWTs and hashed, rotating refresh tokens); both save their own changes, and every login refusal
-  costs a password hash (`IdentityService.CheckPasswordAsync`). `JwtOptions` lives here (the token service signs with
-  it) and is bound by the Api.
+  costs a password hash (`IdentityService.CheckPasswordAsync`). Gotcha: `UserManager` reports a lost race on the
+  user row's concurrency stamp as a failed `IdentityResult` — it never throws — and leaves the entry Modified, so the
+  next `SaveChanges` of the scope replays the stale write and fails: check every result of a `UserManager` write that
+  can race, reload the row and go again (`IdentityService` does this for the failed-attempt count). `JwtOptions` lives
+  here (the token service signs with it) and is bound by the Api; `DependencyInjection.ConfigureIdentity` is shared
+  with the design-time factory, so Identity's store options (schema version, key lengths) shape the migrations too.
 - **Reference data (ADR 0031):** inserted if missing by well-known id after every `Migrate`, through EF's seeding
   hook in `DependencyInjection.Configure` (`UseSeeding`/`UseAsyncSeeding`, so `dotnet ef database update` seeds too),
-  straight through the `DbContext` — no managers, nothing else is registered where migrations run. `RoleSeed` +
-  `RoleSeeder` is the pattern: a project's roles go into `RoleSeed`, other reference data gets a seeder of the same
-  shape next to it, called from the same hook. Never `HasData` — it diffs the data into every migration.
+  straight through the `DbContext` — no managers, nothing else is registered where migrations run — and only when no
+  migration is pending, so a revert never seeds a table that is gone. `RoleSeed` + `RoleSeeder` is the pattern: a
+  project's roles go into `RoleSeed`, other reference data gets a seeder of the same shape next to it (it clears the
+  tracker first, so a retried migration doesn't meet its own rolled-back rows), called from the same hook. Never
+  `HasData` — it diffs the data into every migration.
 - Register all Infrastructure services/ports from `AddInfrastructure(...)`, called once from `Program.cs`. A missing
   connection string fails there with a message naming the setting.
 

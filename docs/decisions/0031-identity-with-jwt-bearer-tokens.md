@@ -28,9 +28,13 @@ issues a new one of the same family. A spent token presented again means two par
 revoked and the request fails — except within `TokenService.ReuseGrace` (30 s) of its rotation while its replacement
 is still unused, which is the same client whose answer was lost (a page reloaded mid-refresh); then the unused
 replacement is retired and a new one issued in its place. Two rotations of one token at the same instant are caught
-by `xmin`; a family revoke that loses to a concurrent writer reloads and goes again, so the replacement dies too; a
-refresh-token insert that hits its own row on a retried commit is a success
-([0013](0013-save-outcomes-unique-violations-and-conflicts.md)). Logout revokes the family of the presented token,
+by `xmin`: the loser reads the family again and is then decided by the reuse rules, exactly like a token presented a
+moment later (the grace for the same client, a dead family for a copy); a family revoke that loses to a concurrent
+writer reloads and goes again, so the replacement dies too; a refresh-token insert that hits its own row on a retried
+commit is a success ([0013](0013-save-outcomes-unique-violations-and-conflicts.md)). Rows past their own expiry are
+deleted — the user's at every sign-in, the family's at every rotation — with one statement over the user or family
+index: a spent token still in date is kept, so a copy of it is still caught, and an expired one could only be told
+from an unknown token, which answers the same 401. Logout revokes the family of the presented token,
 only when it belongs to the signed-in user, and always answers 204 — an unknown token is a logout that already
 happened. Access tokens are not revocable; that is why they are short.
 
@@ -41,12 +45,18 @@ explicitly named indexes get names spelled as the naming convention would — th
 model; the e-mail index is unique in the database, not only checked in code, so concurrent registrations of one
 address cannot both succeed. User ids are UUIDv7 created by the use case ([0003](0003-strongly-typed-ids.md)).
 Identity is configured as "core" only — no cookies, no `SignInManager`: the password rule is a minimum length of 10
-and nothing else (length beats character classes); the email is unique and also the user name; lockout after 5
-failed attempts for 15 minutes, on from the first attempt.
+and nothing else (length beats character classes); the email is unique and also the user name, with Identity's
+user-name alphabet off (it refuses valid addresses such as `o'brien@example.com`; the validators check the address);
+lockout after 5 failed attempts for 15 minutes, on from the first attempt. Identity writes the user row with its
+concurrency stamp and reports a lost race without throwing: a failed-attempt count or its reset that lost is made
+again on the fresh row, so guesses sent together all count and a second submit of the right password still signs in.
+The design-time factory builds the model with the same Identity options, so a migration is made from the model the
+Api runs.
 
 **Roles** are reference data with well-known ids, inserted if missing after every migration through EF's seeding
 hook (`UseSeeding`/`UseAsyncSeeding` in `DependencyInjection.Configure`, so `dotnet ef database update` seeds too),
-straight through the `DbContext` so no Identity services are needed where migrations run. The template ships none: a
+straight through the `DbContext` so no Identity services are needed where migrations run — and only on a database at
+the latest migration, so reverting one (`database update 0`, `migrations remove`) never seeds a table that is gone. The template ships none: a
 project adds its constants to `Roles`, its rows to `RoleSeed`, and builds its authorization policies on them
 (`RequireRole`) in `AuthenticationSetup`.
 
@@ -63,16 +73,21 @@ an unknown email, a wrong password and a locked-out account alike, and every ref
 `CheckPasswordAsync(email, password)` verifies against a dummy hash made by the configured hasher when there is no
 real one to check (unknown email, lockout), so the answer takes as long either way. The port owns this, not the
 handler, so no use case can skip it. Input longer than `AuthRules` allows is refused by the validator (400) before
-anything is normalized, looked up or hashed. Register, login and refresh are rate-limited per client IP — 10 a
-minute for register and login, 60 for refresh, because every start of a web app spends one and an office shares an
-IP — and answer 429 `TOO_MANY_REQUESTS` with `Retry-After`
+anything is normalized, looked up or hashed, and so is an email with white space or a control character, or a
+display name with a control character (Postgres refuses a NUL in text with an error the client would see as a 500).
+Register, login and refresh are rate-limited per client — 10 a minute for register and login, 60 for refresh,
+because every start of a web app spends one and an office shares an IP — and answer 429 `TOO_MANY_REQUESTS` with
+`Retry-After`. A client is its IPv4 address (also when a dual-stack socket reports it IPv6-mapped) or its IPv6 /64,
+since one host is usually given a whole /64 and could take a fresh address per request
 ([0026](0026-unauthorized-kind-and-too-many-requests-code.md)); the limiter runs after authentication, so a later
 policy can count per account. `AUTH_EMAIL_TAKEN` (409) on register still reveals existence — accepted until email
 confirmation exists.
 
 **Pipeline and contract.** A fallback policy requires a signed-in user on every endpoint unless it is marked
 `.AllowAnonymous()` (health, OpenAPI, register/login/refresh); `UseNotFoundForUnmatchedRoutes` before authorization
-keeps unknown routes at 404 ([0018](0018-http-error-contract.md), [0029](0029-hosting-behind-a-proxy-with-migrations-as-a-deploy-step.md)).
+keeps unknown routes at 404 ([0018](0018-http-error-contract.md), [0029](0029-hosting-behind-a-proxy-with-migrations-as-a-deploy-step.md))
+and lets routing's own rejections answer there too — a wrong method is 405, a wrong content type 415, signed in or
+not, instead of a 401 that would send a client to sign in for a bug in its request.
 Register answers **201** with the token pair (no `Location`: there is no resource for one user, `/me` is the signed-in
 one). Identity's own refusals on register — an email it won't accept, a password under its minimum — become
 validation errors on that field (`INVALID`, `TOO_SHORT`), so the client handles them like the validator's.
@@ -92,7 +107,10 @@ validation errors on that field (`INVALID`, `TOO_SHORT`), so the client handles 
   lands inside the 30 s and meets an unused replacement).
 - A lost acknowledgement on a refresh (retried commit) makes the client sign in again. Accepted as rare (0013).
 - Lockout alone lets anyone lock a known account with five wrong passwords every fifteen minutes; the rate limit
-  bounds how often. Brute force is the bigger risk, so lockout stays.
+  bounds how often. Brute force is the bigger risk, so lockout stays. Lockout runs on the system clock (Identity has
+  no `TimeProvider`), and so does the rate limiter: a test can't fast-forward either.
+- A family keeps sliding while its client refreshes; there is no absolute session lifetime. A project that needs one
+  ("sign in again every 90 days") carries the family's start in each token and refuses rotation past it.
 - `/me` reads the account from the database, so a renamed user or a changed role shows at once, while the access
   token keeps its claims until it expires.
 - Identity's claim, login and token tables exist unused; dropping them would mean a custom user store for no gain.

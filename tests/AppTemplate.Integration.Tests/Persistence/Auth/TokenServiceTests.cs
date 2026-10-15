@@ -14,26 +14,50 @@ namespace AppTemplate.Integration.Tests.Persistence.Auth;
 public sealed class TokenServiceTests(PostgresFixture postgres)
 {
     [Fact]
-    public async Task RotateRefreshToken_TwoScopesRotateTheSameToken_OnlyTheFirstGetsAReplacement()
+    public async Task RotateRefreshToken_TwoScopesRotateTheSameTokenWithinTheGrace_TheLoserIsAnsweredLikeAReloadedPage()
     {
         // Arrange: the stale scope loads the token before the other one rotates it (xmin changes); its own rotation
-        // then updates a row that moved on.
+        // then updates a row that moved on, so it reads the family again and the reuse rules decide (ADR 0031).
         await using ServiceProvider services = postgres.CreateServices(AuthServices.Configure);
         Guid userId = await AuthServices.CreateUserAsync(services);
         string raw = await CreateTokenAsync(services, userId);
 
         await using AsyncServiceScope stale = services.CreateAsyncScope();
         await LoadFamilyAsync(stale, raw);
-        RefreshTokenRotation? first = await RotateAsync(services, raw);
+        RefreshTokenRotation first = (await RotateAsync(services, raw)).ShouldNotBeNull();
 
         // Act
         RefreshTokenRotation? second = await stale.ServiceProvider.GetRequiredService<ITokenService>()
             .RotateRefreshTokenAsync(raw, CancellationToken.None);
 
-        // Assert: the loser gets nothing and the family stays alive — the winner's replacement still works.
-        first.ShouldNotBeNull();
+        // Assert: within the grace and with the winner's replacement unused, that replacement is retired and the loser
+        // gets its successor — one live token in the family, as after a page reloaded mid-refresh.
+        second.ShouldNotBeNull().Replacement.Token.ShouldNotBe(first.Replacement.Token);
+        (await LiveTokensInFamilyOfAsync(services, raw)).ShouldBe(1);
+        (await RotateAsync(services, second.Replacement.Token)).ShouldNotBeNull();
+    }
+
+    [Fact]
+    public async Task RotateRefreshToken_LoserOfARaceArrivingPastTheGrace_RevokesTheFamily()
+    {
+        // Arrange: a copy of the token raced the rightful rotation and lost on xmin; read again, the token is long spent.
+        await using ServiceProvider services = postgres.CreateServices(AuthServices.Configure);
+        Guid userId = await AuthServices.CreateUserAsync(services);
+        string raw = await CreateTokenAsync(services, userId);
+
+        await using AsyncServiceScope stale = services.CreateAsyncScope();
+        await LoadFamilyAsync(stale, raw);
+        RefreshTokenRotation first = (await RotateAsync(services, raw)).ShouldNotBeNull();
+        Clock(services).Advance(TokenService.ReuseGrace + TimeSpan.FromSeconds(1));
+
+        // Act
+        RefreshTokenRotation? second = await stale.ServiceProvider.GetRequiredService<ITokenService>()
+            .RotateRefreshTokenAsync(raw, CancellationToken.None);
+
+        // Assert: theft detected — nothing for the loser, and the winner's chain is dead too.
         second.ShouldBeNull();
-        (await RotateAsync(services, first.Replacement.Token)).ShouldNotBeNull();
+        (await LiveTokensInFamilyOfAsync(services, raw)).ShouldBe(0);
+        (await RotateAsync(services, first.Replacement.Token)).ShouldBeNull();
     }
 
     [Fact]
@@ -157,6 +181,47 @@ public sealed class TokenServiceTests(PostgresFixture postgres)
         (await RotateAsync(services, laptop)).ShouldNotBeNull();
     }
 
+    [Fact]
+    public async Task CreateRefreshToken_SignIn_DeletesTheUsersExpiredTokensOnly()
+    {
+        // Arrange: a token of this user and one of another user, both past their expiry.
+        await using ServiceProvider services = postgres.CreateServices(AuthServices.Configure);
+        Guid userId = await AuthServices.CreateUserAsync(services);
+        Guid otherUserId = await AuthServices.CreateUserAsync(services);
+        string expired = await CreateTokenAsync(services, userId);
+        string othersExpired = await CreateTokenAsync(services, otherUserId);
+        Clock(services).Advance(TimeSpan.FromDays(15));
+
+        // Act
+        string fresh = await CreateTokenAsync(services, userId);
+
+        // Assert
+        (await RowExistsAsync(services, expired)).ShouldBeFalse();
+        (await RowExistsAsync(services, fresh)).ShouldBeTrue();
+        (await RowExistsAsync(services, othersExpired)).ShouldBeTrue();
+    }
+
+    [Fact]
+    public async Task RotateRefreshToken_DeletesTheFamilysExpiredTokensAndKeepsTheSpentOnesStillInDate()
+    {
+        // Arrange: T1 rotated a day in, T2 an hour after T1 expired and a day before its own expiry. A spent token
+        // still in date is kept, so a copy of it presented later is still caught as a reuse (ADR 0031).
+        await using ServiceProvider services = postgres.CreateServices(AuthServices.Configure);
+        Guid userId = await AuthServices.CreateUserAsync(services);
+        string t1 = await CreateTokenAsync(services, userId);
+        Clock(services).Advance(TimeSpan.FromDays(1));
+        RefreshTokenRotation second = (await RotateAsync(services, t1)).ShouldNotBeNull();
+        Clock(services).Advance(TimeSpan.FromDays(13) + TimeSpan.FromHours(1));
+
+        // Act
+        RefreshTokenRotation third = (await RotateAsync(services, second.Replacement.Token)).ShouldNotBeNull();
+
+        // Assert
+        (await RowExistsAsync(services, t1)).ShouldBeFalse();
+        (await RowExistsAsync(services, second.Replacement.Token)).ShouldBeTrue();
+        (await RowExistsAsync(services, third.Replacement.Token)).ShouldBeTrue();
+    }
+
     private static FakeTimeProvider Clock(ServiceProvider services) => (FakeTimeProvider)services.GetRequiredService<TimeProvider>();
 
     private static async Task<string> CreateTokenAsync(ServiceProvider services, Guid userId)
@@ -179,6 +244,13 @@ public sealed class TokenServiceTests(PostgresFixture postgres)
         string hash = TokenService.Hash(raw);
         Guid familyId = await db.RefreshTokens.Where(token => token.TokenHash == hash).Select(token => token.FamilyId).SingleAsync();
         await db.RefreshTokens.Where(token => token.FamilyId == familyId).ToListAsync();
+    }
+
+    private static async Task<bool> RowExistsAsync(ServiceProvider services, string raw)
+    {
+        await using AsyncServiceScope scope = services.CreateAsyncScope();
+        string hash = TokenService.Hash(raw);
+        return await scope.ServiceProvider.GetRequiredService<AppDbContext>().RefreshTokens.AnyAsync(token => token.TokenHash == hash);
     }
 
     private static async Task<int> LiveTokensInFamilyOfAsync(ServiceProvider services, string raw)

@@ -30,8 +30,8 @@ public class AuthenticationSetupTests
         // Act
         Action act = () => AuthenticationSetup.IsWithinLifetime(Now.AddMinutes(-15), Now.AddSeconds(-31), Skew, Now);
 
-        // Assert: the typed exception keeps the handler's challenge reason.
-        Should.Throw<SecurityTokenExpiredException>(act);
+        // Assert: the typed exception keeps the handler's challenge reason, with the expiry it names.
+        Should.Throw<SecurityTokenExpiredException>(act).Expires.ShouldBe(Now.AddSeconds(-31));
     }
 
     [Fact]
@@ -51,7 +51,7 @@ public class AuthenticationSetupTests
         Action act = () => AuthenticationSetup.IsWithinLifetime(Now.AddSeconds(31), Now.AddMinutes(15), Skew, Now);
 
         // Assert
-        Should.Throw<SecurityTokenNotYetValidException>(act);
+        Should.Throw<SecurityTokenNotYetValidException>(act).NotBefore.ShouldBe(Now.AddSeconds(31));
     }
 
     [Fact]

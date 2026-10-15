@@ -45,6 +45,32 @@ public class RegisterCommandValidatorTests
         result.ShouldHaveValidationErrorFor(c => c.Email).WithErrorCode(ValidationCodes.Invalid).Only();
     }
 
+    [Theory]
+    [InlineData("ana @example.com")]
+    [InlineData(" ana@example.com")]
+    [InlineData("ana@example.com\t")]
+    [InlineData("ana\u0000@example.com")]
+    public void Validate_EmailWithWhiteSpaceOrAControlCharacter_IsInvalid(string email)
+    {
+        // Act
+        TestValidationResult<RegisterCommand> result = _validator.TestValidate(new RegisterCommand(email, "correct horse battery", "Ana"));
+
+        // Assert: refused before it is stored or looked up (Postgres refuses a NUL with a 500).
+        result.ShouldHaveValidationErrorFor(c => c.Email).WithErrorCode(ValidationCodes.Invalid).Only();
+    }
+
+    [Theory]
+    [InlineData("o'brien@example.com")]
+    [InlineData("ana+tag@example.com")]
+    public void Validate_EmailWithCharactersAnAddressMayHave_IsAccepted(string email)
+    {
+        // Act
+        TestValidationResult<RegisterCommand> result = _validator.TestValidate(new RegisterCommand(email, "correct horse battery", "Ana"));
+
+        // Assert
+        result.ShouldNotHaveValidationErrorFor(c => c.Email);
+    }
+
     [Fact]
     public void Validate_EmailOverMaxLength_IsTooLong()
     {
@@ -127,6 +153,28 @@ public class RegisterCommandValidatorTests
 
         // Assert
         result.ShouldHaveValidationErrorFor(c => c.DisplayName).WithErrorCode(ValidationCodes.Required).Only();
+    }
+
+    [Theory]
+    [InlineData("Ana\u0000")]
+    [InlineData("Ana\nAnić")]
+    public void Validate_DisplayNameWithAControlCharacter_IsInvalid(string displayName)
+    {
+        // Act
+        TestValidationResult<RegisterCommand> result = _validator.TestValidate(new RegisterCommand("ana@example.com", "correct horse battery", displayName));
+
+        // Assert
+        result.ShouldHaveValidationErrorFor(c => c.DisplayName).WithErrorCode(ValidationCodes.Invalid).Only();
+    }
+
+    [Fact]
+    public void Validate_DisplayNameWithSpacesBetweenWords_IsAccepted()
+    {
+        // Act
+        TestValidationResult<RegisterCommand> result = _validator.TestValidate(new RegisterCommand("ana@example.com", "correct horse battery", "Ana Marija Anić"));
+
+        // Assert
+        result.ShouldNotHaveValidationErrorFor(c => c.DisplayName);
     }
 
     [Fact]

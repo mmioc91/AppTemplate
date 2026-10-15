@@ -58,19 +58,36 @@ public static class DependencyInjection
 
     // Shared with the design-time factory so migrations use exactly the runtime configuration. The seed runs after
     // every Migrate — on startup here, under `dotnet ef database update` through the factory — so reference data
-    // reaches every environment with its schema (ADR 0031).
+    // reaches every environment with its schema (ADR 0031). Only on a database at the latest migration: a migration
+    // reverted (`database update 0`, `migrations remove`) or stopped short of the last one has no table the seed may
+    // expect.
     internal static DbContextOptionsBuilder Configure(DbContextOptionsBuilder options, string connectionString) =>
         options
             .UseNpgsql(connectionString, npgsql => npgsql.EnableRetryOnFailure())
             .UseSnakeCaseNamingConvention()
-            .UseSeeding((db, _) => RoleSeeder.Seed(db))
-            .UseAsyncSeeding((db, _, cancellationToken) => RoleSeeder.SeedAsync(db, cancellationToken));
+            .UseSeeding((db, _) =>
+            {
+                if (!db.Database.GetPendingMigrations().Any())
+                {
+                    RoleSeeder.Seed(db, RoleSeed.All());
+                }
+            })
+            .UseAsyncSeeding(async (db, _, cancellationToken) =>
+            {
+                if (!(await db.Database.GetPendingMigrationsAsync(cancellationToken)).Any())
+                {
+                    await RoleSeeder.SeedAsync(db, RoleSeed.All(), cancellationToken);
+                }
+            });
 
     // Length beats character classes, so the only password rule is the minimum length (ADR 0031). Lockout from the
-    // first failed attempt of a new account.
-    private static void ConfigureIdentity(IdentityOptions options)
+    // first failed attempt of a new account. The user name is the email, which the validators and Identity's email rule
+    // already check; Identity's user-name alphabet would refuse valid addresses such as o'brien@example.com. Internal so
+    // the design-time factory builds the model with the same store options (a schema version, key lengths).
+    internal static void ConfigureIdentity(IdentityOptions options)
     {
         options.User.RequireUniqueEmail = true;
+        options.User.AllowedUserNameCharacters = string.Empty;
 
         options.Password.RequiredLength = AuthRules.PasswordMinLength;
         options.Password.RequireDigit = false;

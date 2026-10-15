@@ -67,12 +67,14 @@ See root `CLAUDE.md` for cross-cutting rules.
   `ICurrentUser` (`CurrentUser`, the principal's `sub` claim), **never** from the request body. A role-based policy is
   named in a static class (`AuthPolicies`), built on `Roles` in `AuthenticationSetup` (`RequireRole`) and required on a
   route group (`RequireAuthorization(AuthPolicies.X)`), which then declares 403 too. Every rate-limit policy (a fixed
-  window per client IP) is registered in `ApiRateLimiting`, and the limiter runs **after authentication** so a policy
+  window per client: its IPv4 address, or its IPv6 /64 — `ApiRateLimiting.ClientKey`) is registered in
+  `ApiRateLimiting`, and the limiter runs **after authentication** so a policy
   can count per account: register and login carry `.RequireRateLimiting(AuthRateLimiting.PolicyName)`, refresh its
   own `RefreshPolicyName`; a later endpoint that mails someone or tells whether an address has an account (password
   reset, invitations) gets a policy of its own. Token lifetimes run on the host's `TimeProvider`, so an integration test expires tokens with a
-  `FakeTimeProvider` through `ApiFactory`. Gotcha: the fallback policy also covers requests that matched no endpoint —
-  `UseNotFoundForUnmatchedRoutes()` runs before authorization to keep unknown routes at 404 (ADR 0018, 0029), and
+  `FakeTimeProvider` through `ApiFactory` (Identity's lockout and the rate limiter keep the system clock). Gotcha: the
+  fallback policy also covers requests that matched no real endpoint — `UseNotFoundForUnmatchedRoutes()` runs before
+  authorization to keep unknown routes at 404 and to let routing's own 405/415 answer (ADR 0018, 0029, 0031), and
   `UseAuthentication()`/`UseAuthorization()` are called explicitly after it: registered without the calls,
   `WebApplication` inserts them ahead of every user middleware and the 401 wins again.
 

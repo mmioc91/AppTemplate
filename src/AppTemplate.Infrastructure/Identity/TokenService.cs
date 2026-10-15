@@ -19,8 +19,8 @@ internal sealed class TokenService(AppDbContext db, IOptions<JwtOptions> options
 {
     private const int RefreshTokenBytes = 32;
 
-    // A family revoke that keeps losing to concurrent writers is a bug, not something to loop on forever.
-    private const int MaxRevokeAttempts = 3;
+    // A family revoke or a rotation that keeps losing to concurrent writers is a bug, not something to loop on forever.
+    private const int MaxWriteAttempts = 3;
 
     // How long after a rotation the spent token may come back from the same client — a page reloaded before it stored
     // the new pair. Short, so a stolen copy has little to work with.
@@ -59,7 +59,12 @@ internal sealed class TokenService(AppDbContext db, IOptions<JwtOptions> options
 
     public async Task<RefreshToken> CreateRefreshTokenAsync(Guid userId, CancellationToken cancellationToken)
     {
-        (StoredRefreshToken stored, string raw) = NewToken(userId, familyId: Guid.CreateVersion7(), time.GetUtcNow());
+        DateTimeOffset now = time.GetUtcNow();
+
+        // A sign-in clears the user's expired rows, those of families nobody refreshes any more included.
+        await PurgeExpiredAsync(db.RefreshTokens.Where(token => token.UserId == userId), now, cancellationToken);
+
+        (StoredRefreshToken stored, string raw) = NewToken(userId, familyId: Guid.CreateVersion7(), now);
         db.RefreshTokens.Add(stored);
 
         try
@@ -83,11 +88,29 @@ internal sealed class TokenService(AppDbContext db, IOptions<JwtOptions> options
 
     public async Task<RefreshTokenRotation?> RotateRefreshTokenAsync(string refreshToken, CancellationToken cancellationToken)
     {
+        for (int attempt = 1; ; attempt++)
+        {
+            Rotation outcome = await TryRotateAsync(refreshToken, cancellationToken);
+
+            // Another request rotated or revoked a token of this family between our read and our save (xmin). Read it
+            // again: the token is then spent, and the reuse rules decide exactly as for a token presented a moment
+            // later — the grace for the same client, a dead family for a copy.
+            if (!outcome.LostRace || attempt == MaxWriteAttempts)
+            {
+                return outcome.Result;
+            }
+
+            ForgetTrackedTokens();
+        }
+    }
+
+    private async Task<Rotation> TryRotateAsync(string refreshToken, CancellationToken cancellationToken)
+    {
         StoredRefreshToken? presented = await FindAsync(refreshToken, cancellationToken);
 
         if (presented is null)
         {
-            return null;
+            return Rotation.Refused;
         }
 
         DateTimeOffset now = time.GetUtcNow();
@@ -102,7 +125,7 @@ internal sealed class TokenService(AppDbContext db, IOptions<JwtOptions> options
             if (unused is null)
             {
                 await RevokeFamilyAsync(presented.FamilyId, now, cancellationToken);
-                return null;
+                return Rotation.Refused;
             }
 
             return await RotateAsync(unused, now, cancellationToken);
@@ -110,7 +133,7 @@ internal sealed class TokenService(AppDbContext db, IOptions<JwtOptions> options
 
         if (presented.IsExpiredAt(now))
         {
-            return null;
+            return Rotation.Refused;
         }
 
         return await RotateAsync(presented, now, cancellationToken);
@@ -128,8 +151,8 @@ internal sealed class TokenService(AppDbContext db, IOptions<JwtOptions> options
         return replacement is { IsRevoked: false } && !replacement.IsExpiredAt(now) ? replacement : null;
     }
 
-    // The token spent and a new one of its family in its place, in one save.
-    private async Task<RefreshTokenRotation?> RotateAsync(StoredRefreshToken presented, DateTimeOffset now, CancellationToken cancellationToken)
+    // The token spent and a new one of its family in its place, in one save; then the family's expired rows go.
+    private async Task<Rotation> RotateAsync(StoredRefreshToken presented, DateTimeOffset now, CancellationToken cancellationToken)
     {
         (StoredRefreshToken replacement, string raw) = NewToken(presented.UserId, presented.FamilyId, now);
         presented.RevokedAt = now;
@@ -142,17 +165,18 @@ internal sealed class TokenService(AppDbContext db, IOptions<JwtOptions> options
         }
         catch (DbUpdateConcurrencyException)
         {
-            // Two rotations of one token at the same instant: the other one won and this request gets nothing.
-            return null;
+            return Rotation.Lost;
         }
         catch (DbUpdateException exception) when (exception.IsUniqueViolation())
         {
             // A retried commit re-inserting the replacement it already saved: the rotation happened, but this answer
             // can't carry it, so the client signs in again (ADR 0031).
-            return null;
+            return Rotation.Refused;
         }
 
-        return new RefreshTokenRotation(presented.UserId, new RefreshToken(raw, replacement.ExpiresAt));
+        await PurgeExpiredAsync(db.RefreshTokens.Where(token => token.FamilyId == presented.FamilyId), now, cancellationToken);
+
+        return new Rotation(new RefreshTokenRotation(presented.UserId, new RefreshToken(raw, replacement.ExpiresAt)), LostRace: false);
     }
 
     public async Task RevokeRefreshTokenAsync(string refreshToken, Guid userId, CancellationToken cancellationToken)
@@ -195,13 +219,29 @@ internal sealed class TokenService(AppDbContext db, IOptions<JwtOptions> options
                 await db.SaveChangesAsync(cancellationToken);
                 return;
             }
-            catch (DbUpdateConcurrencyException exception) when (attempt < MaxRevokeAttempts)
+            catch (DbUpdateConcurrencyException exception) when (attempt < MaxWriteAttempts)
             {
                 foreach (EntityEntry entry in exception.Entries)
                 {
                     await entry.ReloadAsync(cancellationToken);
                 }
             }
+        }
+    }
+
+    // Rows past their own expiry: a spent one there can no longer be told from an unknown token (both answer 401), and
+    // a live one there is refused anyway, so keeping them only grows the table. One statement over an index (the
+    // user's or the family's rows), not an aggregate: no domain rule or concurrency check applies (ADR 0031).
+    private static Task<int> PurgeExpiredAsync(IQueryable<StoredRefreshToken> rows, DateTimeOffset now, CancellationToken cancellationToken) =>
+        rows.Where(token => token.ExpiresAt <= now).ExecuteDeleteAsync(cancellationToken);
+
+    // After a lost race the tracked rows hold what this request read and meant to write; the next read must see the
+    // database. Only refresh tokens: nothing else of the scope is this port's to drop.
+    private void ForgetTrackedTokens()
+    {
+        foreach (EntityEntry<StoredRefreshToken> entry in db.ChangeTracker.Entries<StoredRefreshToken>().ToList())
+        {
+            entry.State = EntityState.Detached;
         }
     }
 
@@ -225,4 +265,12 @@ internal sealed class TokenService(AppDbContext db, IOptions<JwtOptions> options
     // Internal so a test can prove the table holds the hash and not the value.
     internal static string Hash(string refreshToken) =>
         Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(refreshToken)));
+
+    // What one attempt came to: a rotation, a refusal (null), or a lost race to read again.
+    private sealed record Rotation(RefreshTokenRotation? Result, bool LostRace)
+    {
+        public static readonly Rotation Refused = new(null, LostRace: false);
+
+        public static readonly Rotation Lost = new(null, LostRace: true);
+    }
 }

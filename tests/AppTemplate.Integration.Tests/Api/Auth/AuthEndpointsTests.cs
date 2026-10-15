@@ -68,6 +68,39 @@ public sealed class AuthEndpointsTests(PostgresFixture postgres)
     }
 
     [Fact]
+    public async Task Register_EmailWithAnApostrophe_Returns201()
+    {
+        // Arrange: a valid address Identity's default user-name alphabet would refuse (ADR 0031).
+        await using ApiFactory factory = new(postgres);
+        using HttpClient client = factory.CreateClient();
+
+        // Act
+        HttpResponseMessage response = await client.PostAsJsonAsync(
+            AuthClient.Register,
+            new RegisterRequest($"o'brien-{Guid.CreateVersion7():N}@example.com", AuthClient.Password, "Seán"));
+
+        // Assert
+        response.StatusCode.ShouldBe(HttpStatusCode.Created);
+    }
+
+    [Fact]
+    public async Task Login_EmailWithANulCharacter_Returns400OnTheEmailField()
+    {
+        // Arrange: Postgres refuses a NUL in a text parameter; the validator answers before the lookup.
+        await using ApiFactory factory = new(postgres);
+        using HttpClient client = factory.CreateClient();
+
+        // Act
+        HttpResponseMessage response = await AuthClient.LoginAsync(client, "ana\u0000@example.com");
+
+        // Assert
+        response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+        using var body = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        body.RootElement.GetProperty("errors").GetProperty("email").EnumerateArray().Select(code => code.GetString())
+            .ShouldBe([ValidationCodes.Invalid]);
+    }
+
+    [Fact]
     public async Task Register_EmailAlreadyRegistered_Returns409()
     {
         // Arrange

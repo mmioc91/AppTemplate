@@ -58,8 +58,10 @@ See root `CLAUDE.md` for cross-cutting rules.
   in Domain. Every rule sets `.WithErrorCode(ValidationCodes.X)` — generic codes (`REQUIRED`, `TOO_SHORT`, `TOO_LONG`,
   `INVALID`, `NOT_POSITIVE`, `TOO_LARGE`, `NOT_ALLOWED`; add one only for a genuinely new kind of problem); the
   validation decorator reports field → codes, never messages (ADR 0012). Validator tests assert the codes (`FluentValidation.TestHelper`).
-  Every free-text field has a max length. A mandatory value-type field is nullable and starts with
-  `NotNull().WithErrorCode(ValidationCodes.Required)` (ADR 0020).
+  Every free-text field has a max length, and refuses control characters (`Common/TextRules`:
+  `.WithoutControlCharacters()`, or `.WithoutWhiteSpace()` for an identifier such as an email, each with
+  `ValidationCodes.Invalid`) — Postgres refuses a NUL in text, and the client would see a 500. A mandatory value-type
+  field is nullable and starts with `NotNull().WithErrorCode(ValidationCodes.Required)` (ADR 0020).
 - **Cross-aggregate orchestration lives here**, never in an aggregate (e.g. "count existing X before creating a Y").
 - **Time and IDs** are resolved here — time from the injected `TimeProvider` (`AddApplication` registers the system
   clock unless one is already registered), IDs with `Guid.CreateVersion7()` wrapped in the strongly-typed ID (no ID

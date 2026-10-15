@@ -69,7 +69,7 @@ internal static class AuthClient
 
     public static async Task<string> ReadCodeAsync(HttpResponseMessage response)
     {
-        response.Content.Headers.ContentType?.MediaType.ShouldBe("application/problem+json");
+        response.Content.Headers.ContentType.ShouldNotBeNull().MediaType.ShouldBe("application/problem+json");
         using var body = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
         return body.RootElement.GetProperty("code").GetString().ShouldNotBeNull();
     }

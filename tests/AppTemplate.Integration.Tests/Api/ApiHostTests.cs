@@ -3,6 +3,7 @@ using System.Text.Json;
 using AppTemplate.Api;
 using AppTemplate.Api.Errors;
 using AppTemplate.Api.Health;
+using AppTemplate.Infrastructure.Identity;
 using AppTemplate.Integration.Tests.Persistence;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.HttpOverrides;
@@ -131,7 +132,7 @@ public sealed class ApiHostTests(PostgresFixture postgres)
 
         // Assert: the framework's own errors carry a code too (ADR 0018).
         response.StatusCode.ShouldBe(HttpStatusCode.NotFound);
-        response.Content.Headers.ContentType?.MediaType.ShouldBe("application/problem+json");
+        response.Content.Headers.ContentType.ShouldNotBeNull().MediaType.ShouldBe("application/problem+json");
         using var body = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
         body.RootElement.GetProperty("code").GetString().ShouldBe(ProblemCodes.NotFound);
     }
@@ -150,6 +151,65 @@ public sealed class ApiHostTests(PostgresFixture postgres)
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
         using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
         document.RootElement.TryGetProperty("openapi", out _).ShouldBeTrue();
+    }
+
+    [Theory]
+    [InlineData("GET", "/api/v1/auth/login")]
+    [InlineData("POST", "/api/v1/auth/me")]
+    public async Task WrongMethod_WithoutAToken_Answers405NotA401(string method, string path)
+    {
+        // Arrange: the fallback policy would otherwise hide a wrong method behind a sign-in (ADR 0031).
+        await using ApiFactory factory = new(postgres);
+        using HttpClient client = factory.CreateClient();
+        using HttpRequestMessage request = new(new HttpMethod(method), new Uri(path, UriKind.Relative));
+
+        // Act
+        HttpResponseMessage response = await client.SendAsync(request);
+
+        // Assert
+        response.StatusCode.ShouldBe(HttpStatusCode.MethodNotAllowed);
+        using var body = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        body.RootElement.GetProperty("code").GetString().ShouldBe(ProblemCodes.MethodNotAllowed);
+    }
+
+    [Fact]
+    public async Task WrongContentType_WithoutAToken_Answers415NotA401()
+    {
+        // Arrange
+        await using ApiFactory factory = new(postgres);
+        using HttpClient client = factory.CreateClient();
+        using StringContent content = new("{}", System.Text.Encoding.UTF8, "text/plain");
+
+        // Act
+        HttpResponseMessage response = await client.PostAsync(new Uri("/api/v1/auth/login", UriKind.Relative), content);
+
+        // Assert
+        response.StatusCode.ShouldBe(HttpStatusCode.UnsupportedMediaType);
+        using var body = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        body.RootElement.GetProperty("code").GetString().ShouldBe(ProblemCodes.UnsupportedMediaType);
+    }
+
+    public static TheoryData<string> UnusableSigningKeys => new()
+    {
+        string.Empty,
+        "not base64!",
+        Convert.ToBase64String(new byte[JwtOptions.MinSigningKeyBytes - 1]),
+    };
+
+    [Theory]
+    [MemberData(nameof(UnusableSigningKeys))]
+    public async Task Startup_UnusableSigningKey_FailsNamingTheSetting(string key)
+    {
+        // Arrange: a host without a usable key must not start (ADR 0031) — not serve, and fail on every request.
+        await using ApiFactory factory = new(postgres, settings: new Dictionary<string, string> { ["Jwt:SigningKey"] = key });
+
+        // Act
+        Action act = () => factory.CreateClient();
+
+        // Assert
+        OptionsValidationException exception = Should.Throw<OptionsValidationException>(act);
+        exception.OptionsType.ShouldBe(typeof(JwtOptions));
+        exception.Message.ShouldContain(nameof(JwtOptions.SigningKey));
     }
 
     // Every endpoint declares exactly the statuses a client can meet (ADR 0009): one row per endpoint, added with it.

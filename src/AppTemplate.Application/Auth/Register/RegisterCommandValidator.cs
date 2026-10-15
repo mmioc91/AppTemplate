@@ -13,6 +13,7 @@ internal sealed class RegisterCommandValidator : AbstractValidator<RegisterComma
             .Cascade(CascadeMode.Stop)
             .NotEmpty().WithErrorCode(ValidationCodes.Required)
             .MaximumLength(AuthRules.EmailMaxLength).WithErrorCode(ValidationCodes.TooLong)
+            .WithoutWhiteSpace().WithErrorCode(ValidationCodes.Invalid)
             .EmailAddress().WithErrorCode(ValidationCodes.Invalid);
 
         RuleFor(c => c.Password)
@@ -24,6 +25,7 @@ internal sealed class RegisterCommandValidator : AbstractValidator<RegisterComma
         RuleFor(c => c.DisplayName)
             .Cascade(CascadeMode.Stop)
             .NotEmpty().WithErrorCode(ValidationCodes.Required)
-            .MaximumLength(AuthRules.DisplayNameMaxLength).WithErrorCode(ValidationCodes.TooLong);
+            .MaximumLength(AuthRules.DisplayNameMaxLength).WithErrorCode(ValidationCodes.TooLong)
+            .WithoutControlCharacters().WithErrorCode(ValidationCodes.Invalid);
     }
 }

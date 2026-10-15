@@ -11,10 +11,10 @@ namespace AppTemplate.Integration.Tests.Api;
 // The real Api on a real Postgres. The connection string goes in through configuration, so the real
 // AddInfrastructure registers AppDbContext exactly as in production (tests/AppTemplate.Integration.Tests/CLAUDE.md).
 // A TimeProvider replaces the system clock for the whole host — token issuing and validation included, so a test can
-// let tokens expire: the factory's ConfigureServices runs after Program.cs has registered everything, and
-// AddApplication only adds the system clock when none is there, so the last registration wins (it must stay
-// AddSingleton, not TryAdd). Settings reach the host as command-line settings, above appsettings files and environment
-// variables.
+// let tokens expire; Identity's lockout and the rate limiter keep the system clock. The factory's ConfigureServices
+// runs after Program.cs has registered everything, and AddApplication only adds the system clock when none is there,
+// so the last registration wins (it must stay AddSingleton, not TryAdd). Settings reach the host as command-line
+// settings, above appsettings files and environment variables.
 internal sealed class ApiFactory(
     string connectionString,
     string environment,

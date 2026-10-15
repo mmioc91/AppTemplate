@@ -1,17 +1,26 @@
 using System.Net;
+using System.Security.Claims;
 using System.Text.Json;
+using AppTemplate.Api;
 using AppTemplate.Api.Auth;
 using AppTemplate.Api.Errors;
 using AppTemplate.Api.Health;
 using AppTemplate.Infrastructure.Identity;
 using AppTemplate.Integration.Tests.Persistence;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.AspNetCore.Routing.Patterns;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
+using Microsoft.Extensions.Primitives;
 using Microsoft.Extensions.Time.Testing;
 using Microsoft.IdentityModel.JsonWebTokens;
+using Microsoft.IdentityModel.Tokens;
 using Shouldly;
 
 namespace AppTemplate.Integration.Tests.Api.Auth;
@@ -164,6 +173,122 @@ public sealed class AuthenticationTests(PostgresFixture postgres)
     }
 
     [Fact]
+    public async Task AccessToken_ValidatedByTheHostsBearerHandler_GivesTheNameAndTheRoles()
+    {
+        // Arrange: the host's own handler and parameters, as a request is validated — so dropping RoleClaimType or
+        // NameClaimType, or mapping inbound claims again, goes red here, not first in a project's 403s.
+        await using ApiFactory factory = new(postgres);
+        using HttpClient client = factory.CreateClient();
+        await AuthClient.SignInWithRoleAsync(factory, client, Admin);
+        string accessToken = client.DefaultRequestHeaders.Authorization!.Parameter!;
+        JwtBearerOptions bearer = factory.Services.GetRequiredService<IOptionsMonitor<JwtBearerOptions>>().Get(JwtBearerDefaults.AuthenticationScheme);
+
+        // Act
+        TokenValidationResult result = await bearer.TokenHandlers[0].ValidateTokenAsync(accessToken, bearer.TokenValidationParameters);
+
+        // Assert
+        result.IsValid.ShouldBeTrue();
+        ClaimsPrincipal principal = new(result.ClaimsIdentity);
+        principal.Identity!.Name.ShouldBe("Rita");
+        principal.IsInRole(Admin).ShouldBeTrue();
+    }
+
+    // Tokens minted with the host's signing key, each wrong in one way only; the valid one is the control row.
+    public static TheoryData<string, string, bool, HttpStatusCode> MintedTokens => new()
+    {
+        { "AppTemplate", "AppTemplate", true, HttpStatusCode.OK },
+        { "Someone", "AppTemplate", true, HttpStatusCode.Unauthorized },
+        { "AppTemplate", "Someone", true, HttpStatusCode.Unauthorized },
+        { "AppTemplate", "AppTemplate", false, HttpStatusCode.Unauthorized },
+    };
+
+    [Theory]
+    [MemberData(nameof(MintedTokens))]
+    public async Task Request_WithAMintedToken_IsAcceptedOnlyFromTheIssuerForTheAudienceAndSigned(
+        string issuer, string audience, bool signed, HttpStatusCode expected)
+    {
+        // Arrange: a token for this Api's user, issued elsewhere (another issuer, another audience) or unsigned.
+        await using ApiFactory factory = new(postgres);
+        using HttpClient client = factory.CreateClient();
+        AuthClient.TokenPair tokens = await AuthClient.RegisterAsync(client);
+        AuthClient.UseBearer(client, Mint(new JsonWebToken(tokens.AccessToken).Subject, issuer, audience, signed));
+
+        // Act
+        HttpResponseMessage response = await client.GetAsync(AuthClient.Me);
+
+        // Assert
+        response.StatusCode.ShouldBe(expected);
+    }
+
+    [Fact]
+    public async Task Login_FromAnotherClient_HasAWindowOfItsOwn()
+    {
+        // Arrange: one client spends its window.
+        await using ApiFactory factory = new(postgres);
+        WebApplicationFactory<Program> clients = WithClientAddresses(factory);
+        using HttpClient first = Client(clients, "203.0.113.10");
+        using HttpClient second = Client(clients, "203.0.113.20");
+        await SpendTheSignInWindowAsync(first);
+
+        // Act
+        HttpResponseMessage response = await AuthClient.LoginAsync(second, AuthClient.UniqueEmail());
+
+        // Assert
+        response.StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
+    }
+
+    [Fact]
+    public async Task Login_FromAnotherAddressOfTheSameIpv6Network_SharesItsWindow()
+    {
+        // Arrange: a host is given a whole /64 and can use a fresh address per request (ApiRateLimiting.ClientKey).
+        await using ApiFactory factory = new(postgres);
+        WebApplicationFactory<Program> clients = WithClientAddresses(factory);
+        using HttpClient first = Client(clients, "2001:db8:1:2::10");
+        using HttpClient second = Client(clients, "2001:db8:1:2::20");
+        await SpendTheSignInWindowAsync(first);
+
+        // Act
+        HttpResponseMessage response = await AuthClient.LoginAsync(second, AuthClient.UniqueEmail());
+
+        // Assert
+        response.StatusCode.ShouldBe(HttpStatusCode.TooManyRequests);
+    }
+
+    [Fact]
+    public async Task Login_ThroughATrustedProxy_HasAWindowPerForwardedClient()
+    {
+        // Arrange: every request comes from the proxy, which names its client in X-Forwarded-For (ADR 0029).
+        await using ApiFactory factory = new(postgres, settings: new Dictionary<string, string> { [ProxySetup.KnownNetworksKey] = "10.0.0.0/8" });
+        WebApplicationFactory<Program> clients = WithClientAddresses(factory);
+        using HttpClient first = Client(clients, "10.0.0.5", forwardedFor: "203.0.113.10");
+        using HttpClient second = Client(clients, "10.0.0.5", forwardedFor: "203.0.113.20");
+        await SpendTheSignInWindowAsync(first);
+
+        // Act
+        HttpResponseMessage response = await AuthClient.LoginAsync(second, AuthClient.UniqueEmail());
+
+        // Assert
+        response.StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
+    }
+
+    [Fact]
+    public async Task Login_ForwardedByAnUntrustedPeer_CountsAgainstThatPeer()
+    {
+        // Arrange: a peer outside Proxy:KnownNetworks can't escape its window by naming another client.
+        await using ApiFactory factory = new(postgres);
+        WebApplicationFactory<Program> clients = WithClientAddresses(factory);
+        using HttpClient first = Client(clients, "198.51.100.7", forwardedFor: "203.0.113.10");
+        using HttpClient second = Client(clients, "198.51.100.7", forwardedFor: "203.0.113.20");
+        await SpendTheSignInWindowAsync(first);
+
+        // Act
+        HttpResponseMessage response = await AuthClient.LoginAsync(second, AuthClient.UniqueEmail());
+
+        // Assert
+        response.StatusCode.ShouldBe(HttpStatusCode.TooManyRequests);
+    }
+
+    [Fact]
     public async Task Login_OverTheRateLimit_Returns429WithACodeAndRetryAfter()
     {
         // Arrange: register and login share one window per client; the test server is one client.
@@ -216,7 +341,7 @@ public sealed class AuthenticationTests(PostgresFixture postgres)
 
         for (int attempt = 0; attempt < AuthRateLimiting.RefreshPermitLimit; attempt++)
         {
-            await AuthClient.RefreshAsync(client, "not-a-token");
+            (await AuthClient.RefreshAsync(client, "not-a-token")).StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
         }
 
         // Act
@@ -245,6 +370,52 @@ public sealed class AuthenticationTests(PostgresFixture postgres)
         statuses.ShouldAllBe(status => status == HttpStatusCode.OK);
     }
 
+    private static async Task SpendTheSignInWindowAsync(HttpClient client)
+    {
+        for (int attempt = 0; attempt < AuthRateLimiting.PermitLimit; attempt++)
+        {
+            (await AuthClient.LoginAsync(client, AuthClient.UniqueEmail())).StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
+        }
+
+        (await AuthClient.LoginAsync(client, AuthClient.UniqueEmail())).StatusCode.ShouldBe(HttpStatusCode.TooManyRequests);
+    }
+
+    // The test server reports no client address; this host takes it from a test header, ahead of the whole pipeline —
+    // where a socket would have set it, before the forwarded headers are read.
+    private static WebApplicationFactory<Program> WithClientAddresses(ApiFactory factory) =>
+        factory.WithWebHostBuilder(builder => builder.ConfigureServices(services => services.AddSingleton<IStartupFilter, ClientAddressFromHeader>()));
+
+    private static HttpClient Client(WebApplicationFactory<Program> factory, string address, string? forwardedFor = null)
+    {
+        HttpClient client = factory.CreateClient();
+        client.DefaultRequestHeaders.Add(ClientAddressFromHeader.Header, address);
+        if (forwardedFor is not null)
+        {
+            client.DefaultRequestHeaders.Add("X-Forwarded-For", forwardedFor);
+        }
+
+        return client;
+    }
+
+    private static string Mint(string subject, string issuer, string audience, bool signed)
+    {
+        DateTime now = TimeProvider.System.GetUtcNow().UtcDateTime;
+        SecurityTokenDescriptor descriptor = new()
+        {
+            Issuer = issuer,
+            Audience = audience,
+            IssuedAt = now,
+            NotBefore = now,
+            Expires = now.AddMinutes(5),
+            Subject = new ClaimsIdentity([new Claim(JwtClaims.Subject, subject), new Claim(JwtClaims.Name, "Ana")]),
+            SigningCredentials = signed
+                ? new SigningCredentials(new SymmetricSecurityKey(Convert.FromBase64String(ApiFactory.SigningKey)), SecurityAlgorithms.HmacSha256)
+                : null,
+        };
+
+        return new JsonWebTokenHandler().CreateToken(descriptor);
+    }
+
     // A route pattern with its parameters filled: the version, and a fresh id for anything else.
     private static string ConcreteUrl(RoutePattern pattern) =>
         "/" + string.Join('/', pattern.PathSegments.Select(segment => string.Concat(segment.Parts.Select(part => part switch
@@ -254,4 +425,23 @@ public sealed class AuthenticationTests(PostgresFixture postgres)
             RoutePatternParameterPart => Guid.CreateVersion7().ToString(),
             _ => throw new InvalidOperationException($"Unexpected route part {part.GetType().Name}."),
         }))));
+
+    private sealed class ClientAddressFromHeader : IStartupFilter
+    {
+        public const string Header = "X-Test-Client-Address";
+
+        public Action<IApplicationBuilder> Configure(Action<IApplicationBuilder> next) => app =>
+        {
+            app.Use((context, rest) =>
+            {
+                if (context.Request.Headers.TryGetValue(Header, out StringValues address))
+                {
+                    context.Connection.RemoteIpAddress = IPAddress.Parse(address.ToString());
+                }
+
+                return rest(context);
+            });
+            next(app);
+        };
+    }
 }

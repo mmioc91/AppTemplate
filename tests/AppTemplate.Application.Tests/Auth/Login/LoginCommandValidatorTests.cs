@@ -41,6 +41,18 @@ public class LoginCommandValidatorTests
         result.ShouldHaveValidationErrorFor(c => c.Email).WithErrorCode(ValidationCodes.Invalid).Only();
     }
 
+    [Theory]
+    [InlineData("ana @example.com")]
+    [InlineData("ana\u0000@example.com")]
+    public void Validate_EmailWithWhiteSpaceOrAControlCharacter_IsInvalid(string email)
+    {
+        // Act
+        TestValidationResult<LoginCommand> result = _validator.TestValidate(new LoginCommand(email, "correct horse battery"));
+
+        // Assert: refused before the lookup (Postgres refuses a NUL with a 500).
+        result.ShouldHaveValidationErrorFor(c => c.Email).WithErrorCode(ValidationCodes.Invalid).Only();
+    }
+
     [Fact]
     public void Validate_EmailOverMaxLength_IsTooLong()
     {

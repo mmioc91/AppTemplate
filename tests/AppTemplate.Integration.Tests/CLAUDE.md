@@ -36,12 +36,16 @@ tests and Api-level functional tests.
   `AppDbContext` — use `Api/ApiFactory` (Development environment, so startup migrations and OpenAPI run as locally;
   `new ApiFactory(connectionString, environment)` for another database or environment; `new ApiFactory(postgres, time)`
   with a `FakeTimeProvider` replaces the clock for the whole host — token issuing and validation included, so it
-  expires tokens; `new ApiFactory(postgres, settings: …)` adds configuration as command-line settings, above
+  expires tokens (not Identity's lockout or the rate limiter, which keep the system clock); `new ApiFactory(postgres, settings: …)` adds configuration as command-line settings, above
   appsettings files and environment variables; the JWT signing key is `ApiFactory.SigningKey`, never a real one).
   `Api/Auth/AuthClient` drives the auth endpoints as a client would; `AuthenticationTests` pins the host-wide auth
   behavior (fallback policy, token validation, claims, rate limits), `AuthEndpointsTests` the endpoints. Never
   `RemoveAll<DbContextOptions<AppDbContext>>()` and re-register it — that drops `UseSnakeCaseNamingConvention()` and
   the rest of the Infrastructure setup, so the tests would run against a different model than production.
+- **Races are tested, not hoped for:** `Persistence/BeforeNextSave` runs one competing write right before the next
+  `SaveChanges` of the context under test (register it with `ConfigureDbContext<AppDbContext>(o =>
+  o.AddInterceptors(race))`, then `Arm()`) — the window where a concurrent request lands. A competing write from
+  another connection commits at once; assert `race.Fired`, so a test can't pass because the race never happened.
 - **Error-mapping tests don't need a server:** `Api/ProblemResponse` writes through the real ProblemDetails setup on a
   `DefaultHttpContext` and reads back the JSON.
 - **`ApiHostTests`** pins host-wide behavior (health, JSON options, OpenAPI document, framework error codes, the

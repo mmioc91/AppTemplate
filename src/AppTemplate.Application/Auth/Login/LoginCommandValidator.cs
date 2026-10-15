@@ -13,6 +13,7 @@ internal sealed class LoginCommandValidator : AbstractValidator<LoginCommand>
             .Cascade(CascadeMode.Stop)
             .NotEmpty().WithErrorCode(ValidationCodes.Required)
             .MaximumLength(AuthRules.EmailMaxLength).WithErrorCode(ValidationCodes.TooLong)
+            .WithoutWhiteSpace().WithErrorCode(ValidationCodes.Invalid)
             .EmailAddress().WithErrorCode(ValidationCodes.Invalid);
 
         RuleFor(c => c.Password)

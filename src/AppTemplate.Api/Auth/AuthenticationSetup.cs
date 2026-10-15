@@ -54,7 +54,7 @@ internal static class AuthenticationSetup
     }
 
     // What the library checks, against the given instant: an expiry is required, and both bounds tolerate the skew.
-    // The typed exceptions keep the handler's challenge reason (expired vs. not yet valid).
+    // The typed exceptions, with their instants, keep the handler's challenge reason (expired vs. not yet valid, and when).
     internal static bool IsWithinLifetime(DateTime? notBefore, DateTime? expires, TimeSpan clockSkew, DateTime now)
     {
         if (expires is null)
@@ -64,12 +64,12 @@ internal static class AuthenticationSetup
 
         if (notBefore is not null && notBefore.Value > now + clockSkew)
         {
-            throw new SecurityTokenNotYetValidException("The token is not valid yet.");
+            throw new SecurityTokenNotYetValidException("The token is not valid yet.") { NotBefore = notBefore.Value };
         }
 
         if (expires.Value < now - clockSkew)
         {
-            throw new SecurityTokenExpiredException("The token has expired.");
+            throw new SecurityTokenExpiredException("The token has expired.") { Expires = expires.Value };
         }
 
         return true;
