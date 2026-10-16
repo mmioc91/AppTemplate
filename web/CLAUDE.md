@@ -66,8 +66,9 @@ comes from the project's frontend brief (`docs/README.md` says where it lives).
   through the API, then do the flow on the screen. Locate by role, label and text, never CSS; no fixed waits. A new
   screen adds its main flow here in the same PR.
 - **CI**: `ci-web.yml` — `npm ci`, lint (with the e2e type check), format check, production build (every locale),
-  unit tests; `ci-e2e.yml` — the API on a fresh Postgres, the generated client checked against it, then the end-to-end
-  tests on the production build; `deploy.yml` builds the web image (`deploy/web.Dockerfile`) on a tag.
+  unit tests; `ci-e2e.yml` — the API on a fresh Postgres with Mailpit beside it (a mail flow's test reads the link
+  back from Mailpit's API on :8025, ADR 0034), the generated client checked against it, then the end-to-end tests on
+  the production build; `deploy.yml` builds the web image (`deploy/web.Dockerfile`) on a tag.
 
 ## Gotchas
 - The app runs under a Content-Security-Policy (ADR 0033), written once in `deploy/Caddyfile`; `e2e/serve.mjs` sends

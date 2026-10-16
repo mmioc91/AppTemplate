@@ -45,6 +45,13 @@ jobs:
           --health-interval 5s
           --health-timeout 5s
           --health-retries 10
+      # Catches the API's mail, as Mailpit does locally (docker-compose.yml, ADR 0034): a mail flow's test reads the
+      # link back through its API on :8025.
+      mailpit:
+        image: axllent/mailpit:v1.31.6
+        ports:
+          - 1025:1025
+          - 8025:8025
     env:
       ConnectionStrings__Db: Host=localhost;Database=apptemplate;Username=postgres;Password=ci
     defaults:

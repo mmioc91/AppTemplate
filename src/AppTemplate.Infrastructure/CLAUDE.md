@@ -80,6 +80,14 @@ See root `CLAUDE.md` for cross-cutting rules.
   can race, reload the row and go again (`IdentityService` does this for the failed-attempt count). `JwtOptions` lives
   here (the token service signs with it) and is bound by the Api; `DependencyInjection.ConfigureIdentity` is shared
   with the design-time factory, so Identity's store options (schema version, key lengths) shape the migrations too.
+- **Mail (ADR 0034):** `IMailQueue` adds a `QueuedMail` row to the request's context — it commits with the use
+  case's `SaveChangesAsync`, never on its own. `MailDeliveryWorker` (hosted) claims a batch in one statement
+  (`UPDATE … SET next_attempt_at = now + lease … FOR UPDATE SKIP LOCKED … RETURNING *`), then sends through
+  `IMailTransport` (SMTP, MailKit) with no transaction open, saving each mail's outcome as it comes; it backs off on
+  failure and purges old rows. Never send inside a transaction or an execution strategy — a retried commit resends
+  the batch. `HandlebarsMailRenderer` caches compiled templates by their text; `Web/WebLinks` builds every link from
+  `Web:BaseUrl` (a new page gets a method there, the token in the query). `MailOptions` and `WebOptions` live here and
+  are bound by the Api like `JwtOptions`.
 - **Reference data (ADR 0031):** inserted if missing by well-known id after every `Migrate`, through EF's seeding
   hook in `DependencyInjection.Configure` (`UseSeeding`/`UseAsyncSeeding`, so `dotnet ef database update` seeds too),
   straight through the `DbContext` — no managers, nothing else is registered where migrations run — and only when no

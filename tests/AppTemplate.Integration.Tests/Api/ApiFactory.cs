@@ -2,6 +2,8 @@ using System.Globalization;
 using AppTemplate.Api.Auth;
 using AppTemplate.Infrastructure;
 using AppTemplate.Infrastructure.Identity;
+using AppTemplate.Infrastructure.Mail;
+using AppTemplate.Infrastructure.Web;
 using AppTemplate.Integration.Tests.Persistence;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
@@ -26,6 +28,9 @@ internal sealed class ApiFactory(
     // 32 bytes, as the Api demands; a test key, nothing like it exists outside this project.
     public static readonly string SigningKey = Convert.ToBase64String(Enumerable.Range(1, 32).Select(i => (byte)i).ToArray());
 
+    // Where the links in mail point.
+    public const string WebBaseUrl = "https://apptemplate.test";
+
     // The collection's migrated database, in Development — startup migrations and OpenAPI run as they do locally —
     // with an optional clock and extra configuration.
     public ApiFactory(PostgresFixture postgres, TimeProvider? time = null, IReadOnlyDictionary<string, string>? settings = null)
@@ -39,6 +44,11 @@ internal sealed class ApiFactory(
             .UseEnvironment(environment)
             .UseSetting($"ConnectionStrings:{DependencyInjection.ConnectionStringName}", connectionString)
             .UseSetting($"{JwtOptions.SectionName}:{nameof(JwtOptions.SigningKey)}", SigningKey)
+            // Mail is queued as in production but never leaves: a test reads the queue (ADR 0034).
+            .UseSetting($"{MailOptions.SectionName}:{nameof(MailOptions.FromAddress)}", "noreply@apptemplate.test")
+            .UseSetting($"{MailOptions.SectionName}:{nameof(MailOptions.SmtpHost)}", "localhost")
+            .UseSetting($"{MailOptions.SectionName}:{nameof(MailOptions.DeliveryEnabled)}", "false")
+            .UseSetting($"{WebOptions.SectionName}:{nameof(WebOptions.BaseUrl)}", WebBaseUrl)
             // The production limit, not Development's raised one (appsettings.Development.json): the rate-limit tests
             // spend the real window.
             .UseSetting($"{AuthRateLimitOptions.SectionName}:{nameof(AuthRateLimitOptions.AuthPerMinute)}", AuthRateLimitOptions.DefaultPerMinute.ToString(CultureInfo.InvariantCulture))

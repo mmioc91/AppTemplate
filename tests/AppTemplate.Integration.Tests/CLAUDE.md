@@ -43,6 +43,11 @@ tests and Api-level functional tests.
   behavior (fallback policy, token validation, claims, rate limits), `AuthEndpointsTests` the endpoints. Never
   `RemoveAll<DbContextOptions<AppDbContext>>()` and re-register it — that drops `UseSnakeCaseNamingConvention()` and
   the rest of the Infrastructure setup, so the tests would run against a different model than production.
+- **Mail (ADR 0034):** `ApiFactory` turns delivery off, so an HTTP test asserts the queued mail in `queued_mails`
+  (through `AppDbContext`), not an inbox. Outbox tests use a database of their own (`CreateEmptyDatabaseAsync` +
+  migrate) — the queue is global, and other tests' mail would be due there too. The SMTP transport is tested against
+  a Mailpit container (`Mail/SmtpMailTransportTests`). In .NET 10 `BackgroundService.StartAsync` returns before
+  `ExecuteAsync` has run: await `ExecuteTask`, don't check it at once.
 - **Races are tested, not hoped for:** `Persistence/BeforeNextSave` runs one competing write right before the next
   `SaveChanges` of the context under test (register it with `ConfigureDbContext<AppDbContext>(o =>
   o.AddInterceptors(race))`, then `Arm()`) — the window where a concurrent request lands. A competing write from

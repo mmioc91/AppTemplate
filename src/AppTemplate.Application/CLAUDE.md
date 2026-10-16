@@ -52,6 +52,11 @@ See root `CLAUDE.md` for cross-cutting rules.
   `ITokenService` persist their own writes, like Identity itself does — a refresh-token reuse must be recorded even
   though the use case fails. `Auth/` holds register, login, refresh, logout and the current user; `AuthRules` the
   input limits the validators and Identity share, so an oversized input is refused before anything is hashed.
+- **Mail (ADR 0034):** a use case that mails someone renders one of the project's templates (`Mail/MailTemplates`:
+  static `MailTemplate`s, each listing its placeholders; `MailRules` has the lengths) through `IMailRenderer` and
+  queues the result with `IMailQueue.Enqueue` before its one `SaveChangesAsync` — the mail commits with the change
+  and leaves in the background, never from the handler. A link in a mail comes from `IWebLinks` (a method per page of
+  the web app; a new page gets one, its token in the query), never from a hand-built URL.
 - **Await port calls one after another** — never `Task.WhenAll` over repositories/read-stores: behind the ports they
   share one scoped `DbContext`, which isn't thread-safe (EF throws at runtime, and only sometimes).
 - **One validator per command/query**, checking input shape only (non-empty, format, range); domain invariants stay

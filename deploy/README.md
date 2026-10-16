@@ -8,7 +8,8 @@ from the template deploys with a filled-in env file and a version tag.
 
 ```bash
 cp deploy/env.example deploy/.env
-# then, in deploy/.env: SITE_ADDRESS=:8080, ALLOWED_HOSTS=localhost, the two secrets (openssl rand -base64 32),
+# then, in deploy/.env: SITE_ADDRESS=:8080, ALLOWED_HOSTS=localhost, WEB_BASE_URL=http://localhost:8080,
+# MAIL_DELIVERY_ENABLED=false (the example relay stays; nothing is sent), the two secrets (openssl rand -base64 32),
 # and HTTP_PORT/HTTPS_PORT/LOCAL_PORT set to free ports if 80, 443 or 8080 are taken
 docker compose -f deploy/compose.yml --env-file deploy/.env up -d --build
 ```
@@ -26,7 +27,8 @@ refuses the network.
 1. A Linux VM (in the EU when the data is European users' personal data) with Docker Engine and the compose plugin;
    ports 80 and 443 open; a DNS name pointing at it.
 2. On the server: `mkdir -p /opt/apptemplate` and put the filled-in env file there as `/opt/apptemplate/.env` (from
-   `env.example`: the domain in `SITE_ADDRESS` and `ALLOWED_HOSTS`; secrets from `openssl rand -base64 32`). Keep it
+   `env.example`: the domain in `SITE_ADDRESS`, `ALLOWED_HOSTS` and `WEB_BASE_URL`; secrets from
+   `openssl rand -base64 32`; a TLS-capable SMTP relay in `MAIL_*`, ADR 0034). Keep it
    readable by the deploying user only (`chmod 600`). `mkdir -p /opt/apptemplate/backups` for the backups and their
    log.
 3. Let the server read the images: `docker login ghcr.io` with a token that may read packages (GitHub packages are

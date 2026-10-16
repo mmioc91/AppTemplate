@@ -8,6 +8,8 @@ using AppTemplate.Api.OpenApi;
 using AppTemplate.Application;
 using AppTemplate.Infrastructure;
 using AppTemplate.Infrastructure.Identity;
+using AppTemplate.Infrastructure.Mail;
+using AppTemplate.Infrastructure.Web;
 using Asp.Versioning;
 
 WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
@@ -26,6 +28,14 @@ builder.Services.AddOptions<JwtOptions>()
     .ValidateOnStart();
 builder.Services.AddOptions<AuthRateLimitOptions>()
     .Bind(builder.Configuration.GetSection(AuthRateLimitOptions.SectionName))
+    .ValidateDataAnnotations()
+    .ValidateOnStart();
+builder.Services.AddOptions<MailOptions>()
+    .Bind(builder.Configuration.GetSection(MailOptions.SectionName))
+    .ValidateDataAnnotations()
+    .ValidateOnStart();
+builder.Services.AddOptions<WebOptions>()
+    .Bind(builder.Configuration.GetSection(WebOptions.SectionName))
     .ValidateDataAnnotations()
     .ValidateOnStart();
 

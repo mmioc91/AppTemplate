@@ -55,6 +55,8 @@ Don't flag anything the build already enforces (analyzers, `.editorconfig` error
 - The current user (and tenant, if any) comes from a port, never from request input.
 - Handlers are `internal`; a new port a handler needs is registered as a substitute in
   `Application.Tests/DependencyInjectionTests`.
+- A use case that mails someone queues through `IMailQueue` before its `SaveChanges` and never sends from a handler;
+  the links in a mail come from `IWebLinks`, a method per page (ADR 0034).
 
 ### Persistence (Infrastructure)
 - The rules in `src/<Project>.Infrastructure/CLAUDE.md`: get-only properties listed explicitly, value objects as
@@ -63,6 +65,8 @@ Don't flag anything the build already enforces (analyzers, `.editorconfig` error
 - A write that can hit a unique index handles `UniqueConstraintViolationException` ("is it my own row?").
 - A model change comes with its migration in the same change; migrations are never hand-edited. Reference data is
   seeded by a seeder in the seeding hook (`RoleSeeder` is the pattern), never `HasData`.
+- Nothing sends mail inside a transaction or the execution strategy: the outbox worker claims with a lease and saves
+  each outcome on its own (ADR 0034).
 
 ### Api
 - Every new endpoint declares its error statuses and a `WithName`, and has a row in `ApiHostTests` pinning them.

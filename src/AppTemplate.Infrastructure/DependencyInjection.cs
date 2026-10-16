@@ -1,8 +1,10 @@
 using AppTemplate.Application.Abstractions;
 using AppTemplate.Application.Auth;
 using AppTemplate.Infrastructure.Identity;
+using AppTemplate.Infrastructure.Mail;
 using AppTemplate.Infrastructure.Persistence;
 using AppTemplate.Infrastructure.Persistence.Seeding;
+using AppTemplate.Infrastructure.Web;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -41,6 +43,15 @@ public static class DependencyInjection
             .AddEntityFrameworkStores<AppDbContext>();
         services.AddScoped<IIdentityService, IdentityService>();
         services.AddScoped<ITokenService, TokenService>();
+
+        // Mail leaves through the outbox (ADR 0034): queued with the change, sent by the worker; the links it carries
+        // point at the web app. MailOptions and WebOptions are bound by the Api.
+        services.AddScoped<IMailQueue, MailQueue>();
+        services.AddSingleton<IMailRenderer, HandlebarsMailRenderer>();
+        services.AddScoped<MailDelivery>();
+        services.AddSingleton<IMailTransport, SmtpMailTransport>();
+        services.AddHostedService<MailDeliveryWorker>();
+        services.AddSingleton<IWebLinks, WebLinks>();
 
         services.AddHealthChecks()
             .AddDbContextCheck<AppDbContext>(DatabaseHealthCheckName, tags: [ReadinessTag])
