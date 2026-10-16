@@ -12,12 +12,12 @@ public sealed class MailOptions : IValidatableObject
     [EmailAddress]
     public string FromAddress { get; set; } = string.Empty;
 
-    // The app's name as the sender, unless a mail names its own (OutgoingMail.SenderName).
+    // The app's name as the sender (appsettings.json), unless a mail names its own (OutgoingMail.SenderName).
     [Required]
     public string FromName { get; set; } = "AppTemplate";
 
-    // The language the templates are written in, for the layout's lang attribute: the market's once a project writes
-    // its templates (web/'s locale).
+    // The language the templates are written in (appsettings.json), for the layout's lang attribute: the market's
+    // once a project writes its templates (web/'s locale).
     [Required]
     public string Language { get; set; } = "en";
 
@@ -52,11 +52,4 @@ public sealed class MailOptions : IValidatableObject
                 [nameof(SmtpSecurity), nameof(SmtpPassword)]);
         }
     }
-}
-
-public enum MailSecurity
-{
-    None,
-    StartTls,
-    SslOnConnect,
 }

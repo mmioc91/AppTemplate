@@ -194,8 +194,13 @@ public sealed class MailDeliveryTests(PostgresFixture postgres) : IAsyncLifetime
     {
         // Arrange: the host stops while the server has the mail — whether it took it, nobody knows.
         await QueueAsync(new OutgoingMail("ana@example.com", "Hello", "<p>Hi</p>"));
-        _transport.During = _ => throw new OperationCanceledException();
-        await Should.ThrowAsync<OperationCanceledException>(DeliverAsync);
+        using var stopping = new CancellationTokenSource();
+        _transport.During = async _ =>
+        {
+            await stopping.CancelAsync();
+            throw new OperationCanceledException(stopping.Token);
+        };
+        await Should.ThrowAsync<OperationCanceledException>(() => DeliverAsync(stopping.Token));
         _transport.During = null;
 
         // Act
@@ -206,6 +211,23 @@ public sealed class MailDeliveryTests(PostgresFixture postgres) : IAsyncLifetime
         // Assert: another instance doesn't take it meanwhile; afterwards it is sent — at least once (ADR 0034).
         (duringTheLease, afterIt).ShouldBe((0, 1));
         _transport.Sent.ShouldHaveSingleItem().To.ShouldBe("ana@example.com");
+    }
+
+    [Fact]
+    public async Task DeliverDue_TransportCancelsOnItsOwn_CountsAFailedAttempt()
+    {
+        // Arrange: a transport's own timeout (an HTTP client's is a TaskCanceledException) is a failure like any
+        // other, not the host stopping — one that escaped would stop the whole host.
+        await QueueAsync(new OutgoingMail("ana@example.com", "Hello", "<p>Hi</p>"));
+        _transport.During = _ => throw new TaskCanceledException();
+
+        // Act
+        int taken = await DeliverAsync();
+
+        // Assert
+        taken.ShouldBe(1);
+        QueuedMail mail = (await QueuedAsync()).ShouldHaveSingleItem();
+        (mail.Attempts, mail.NextAttemptAt, mail.SentAt).ShouldBe((1, Now + MailDelivery.Backoff[0], (DateTimeOffset?)null));
     }
 
     [Fact]

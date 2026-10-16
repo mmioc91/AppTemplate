@@ -6,7 +6,9 @@ using Microsoft.Extensions.Options;
 namespace AppTemplate.Infrastructure.Mail;
 
 // Drains the mail queue in the background (ADR 0034): a batch at a time, straight on while batches come full, then a
-// pause; old rows are purged once an hour. A failing round is logged and tried again after the pause.
+// pause; old rows are purged once an hour. A failing round is logged and tried again after the pause — whatever it
+// threw, the host's own stop apart: an exception that escaped here would stop the whole host (BackgroundService's
+// default), and a mail server's fault must not.
 internal sealed class MailDeliveryWorker(
     IServiceScopeFactory scopes,
     IOptions<MailOptions> options,
@@ -42,7 +44,7 @@ internal sealed class MailDeliveryWorker(
                     nextPurge = time.GetUtcNow() + PurgeInterval;
                 }
             }
-            catch (Exception exception) when (exception is not OperationCanceledException)
+            catch (Exception exception) when (exception is not OperationCanceledException || !stoppingToken.IsCancellationRequested)
             {
                 MailLog.RoundFailed(logger, exception);
             }

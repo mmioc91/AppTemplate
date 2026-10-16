@@ -76,8 +76,10 @@ internal sealed class MailDelivery(
             .ExecuteDeleteAsync(cancellationToken);
     }
 
-    // Any failure of the transport counts as an attempt: an unreachable server, a refused address, a timeout. Only the
-    // exception's type is logged — its message can hold the recipient's address.
+    // Any failure of the transport counts as an attempt: an unreachable server, a refused address, a timeout — the
+    // transport's own cancellation included (an HTTP client's timeout is one). Only the host's stop passes through,
+    // leaving the mail claimed until its lease ends. Only the exception's type is logged — its message can hold the
+    // recipient's address.
     private async Task SendAsync(QueuedMail mail, CancellationToken cancellationToken)
     {
         try
@@ -85,7 +87,7 @@ internal sealed class MailDelivery(
             await transport.SendAsync(mail, cancellationToken);
             mail.SentAt = time.GetUtcNow();
         }
-        catch (Exception exception) when (exception is not OperationCanceledException)
+        catch (Exception exception) when (exception is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
         {
             mail.Attempts++;
             DateTimeOffset now = time.GetUtcNow();

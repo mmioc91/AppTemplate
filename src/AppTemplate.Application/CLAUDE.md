@@ -10,7 +10,7 @@ See root `CLAUDE.md` for cross-cutting rules.
 - **Orchestrate, don't decide:** no business rules here (those live in Domain). Typical flow: load an aggregate
   through a repository port → call a domain method → persist via the port. An `if` checking a business rule in a
   use case is a smell — it belongs in Domain instead.
-- **External concerns behind ports:** define an interface in `Abstractions/` (e.g. `IEmailSender`, `I*Repository`)
+- **External concerns behind ports:** define an interface in `Abstractions/` (e.g. `IMailQueue`, `I*Repository`)
   and implement it in Infrastructure. Application never references a concrete technology directly.
 - **Errors (ADR 0008):** use cases return `Result` (no value) or `Result<T>`; an expected failure is an `Error` with a
   `code` and a kind — Validation (400), Unauthorized (401), NotFound (404), Conflict (409), Forbidden (403).

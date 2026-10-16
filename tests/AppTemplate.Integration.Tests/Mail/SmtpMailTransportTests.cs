@@ -1,4 +1,5 @@
 using System.Net.Http.Json;
+using System.Text.Json.Serialization;
 using AppTemplate.Infrastructure.Mail;
 using DotNet.Testcontainers.Builders;
 using DotNet.Testcontainers.Containers;
@@ -14,6 +15,7 @@ public sealed class SmtpMailTransportTests : IAsyncLifetime
     private const int SmtpPort = 1025;
     private const int ApiPort = 8025;
 
+    // The tag docker-compose.yml and ci-e2e.yml run: bump all three together.
     private readonly IContainer _mailpit = new ContainerBuilder("axllent/mailpit:v1.31.6")
         .WithPortBinding(SmtpPort, assignRandomHostPort: true)
         .WithPortBinding(ApiPort, assignRandomHostPort: true)
@@ -86,7 +88,7 @@ public sealed class SmtpMailTransportTests : IAsyncLifetime
     private HttpClient Api() => new() { BaseAddress = new Uri($"http://{_mailpit.Hostname}:{_mailpit.GetMappedPublicPort(ApiPort)}") };
 
     // Mailpit's API, as much of it as the tests read.
-    private sealed record Messages([property: System.Text.Json.Serialization.JsonPropertyName("messages")] List<Message> List);
+    private sealed record Messages([property: JsonPropertyName("messages")] List<Message> List);
 
     private sealed record Message(string Id, string Subject, Mailbox From, List<Mailbox> To, List<Mailbox> ReplyTo);
 

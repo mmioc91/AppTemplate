@@ -36,8 +36,10 @@ mail flow of its own yet; the first one a project adds should find the plumbing 
 - **SMTP through MailKit** (`SmtpMailTransport`), the one protocol every provider speaks; the sender and the server
   come from `Mail:*` (validated on start: a password only with TLS), the password from secrets. Development sends to
   **Mailpit** (`docker compose up -d`, web UI on :8025), and so does CI: `ci-e2e.yml` runs Mailpit beside the Api, so
-  a mail flow's end-to-end test can read the link back from Mailpit's API. The integration tests turn delivery off
-  (`ApiFactory`) and read the queue; the transport itself is tested against a Mailpit container.
+  a mail flow's end-to-end test can read the link back from Mailpit's API. Such a test follows the link by its path
+  and query on its own origin — the Api's `Web:BaseUrl` names the dev server there, and the production stack has its
+  own; the path and the token are what the page needs. The integration tests turn delivery off (`ApiFactory`) and
+  read the queue; the transport itself is tested against a Mailpit container.
 - **Sent and given-up rows are deleted after 30 days** by the worker (once an hour): they hold addresses. A bulk
   delete of Infrastructure's own rows, not of an aggregate.
 

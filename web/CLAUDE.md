@@ -26,6 +26,10 @@ comes from the project's frontend brief (`docs/README.md` says where it lives).
   not the account on screen: a sign-out in another tab ends this tab's session at once (a `storage` event), and a
   refresh that brings another account's token (signed in in another tab) ends it too, keeping that token for its tab —
   both through `endedElsewhere`, which sends the tab to sign in.
+- **A page reached from a mail** (a confirmation, a reset, an invitation) reads its token from the query (`?token=`,
+  built by `IWebLinks` on the API side) and sends it in a request body — never in an API URL (ADR 0034). Its e2e test
+  reads the mail from Mailpit's API (:8025, locally and in CI) and follows the link by its path and query on the
+  test's own origin: the API's `Web:BaseUrl` is the dev server's.
 - **The API client is generated** (`npm run api` → `src/app/core/api/api-client.ts`, NSwag from `/openapi/v1.json` of a
   running API) and committed; never edit it by hand. Regenerate it in the same PR as the backend change that alters
   the contract — `ci-e2e.yml` fails otherwise. Dates and instants are ISO **strings**; a nullable field is `T | null`
