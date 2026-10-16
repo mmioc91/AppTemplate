@@ -26,6 +26,10 @@ comes from the project's frontend brief (`docs/README.md` says where it lives).
   not the account on screen: a sign-out in another tab ends this tab's session at once (a `storage` event), and a
   refresh that brings another account's token (signed in in another tab) ends it too, keeping that token for its tab —
   both through `endedElsewhere`, which sends the tab to sign in.
+- **A page reached from a mail** (a confirmation, a reset, an invitation) reads its token from the query (`?token=`,
+  built by `IWebLinks` on the API side) and sends it in a request body — never in an API URL (ADR 0034). Its e2e test
+  reads the mail from Mailpit's API (:8025, locally and in CI) and follows the link by its path and query on the
+  test's own origin: the API's `Web:BaseUrl` is the dev server's.
 - **The API client is generated** (`npm run api` → `src/app/core/api/api-client.ts`, NSwag from `/openapi/v1.json` of a
   running API) and committed; never edit it by hand. Regenerate it in the same PR as the backend change that alters
   the contract — `ci-e2e.yml` fails otherwise. Dates and instants are ISO **strings**; a nullable field is `T | null`
@@ -66,8 +70,9 @@ comes from the project's frontend brief (`docs/README.md` says where it lives).
   through the API, then do the flow on the screen. Locate by role, label and text, never CSS; no fixed waits. A new
   screen adds its main flow here in the same PR.
 - **CI**: `ci-web.yml` — `npm ci`, lint (with the e2e type check), format check, production build (every locale),
-  unit tests; `ci-e2e.yml` — the API on a fresh Postgres, the generated client checked against it, then the end-to-end
-  tests on the production build; `deploy.yml` builds the web image (`deploy/web.Dockerfile`) on a tag.
+  unit tests; `ci-e2e.yml` — the API on a fresh Postgres with Mailpit beside it (a mail flow's test reads the link
+  back from Mailpit's API on :8025, ADR 0034), the generated client checked against it, then the end-to-end tests on
+  the production build; `deploy.yml` builds the web image (`deploy/web.Dockerfile`) on a tag.
 
 ## Gotchas
 - The app runs under a Content-Security-Policy (ADR 0033), written once in `deploy/Caddyfile`; `e2e/serve.mjs` sends

@@ -3,7 +3,7 @@
 Base repo for new projects: "Use this template" on GitHub, then rename `AppTemplate` to the new project's name.
 
 Backend: ASP.NET Core (.NET 10), Clean Architecture layered by project, PostgreSQL.
-Frontend: Angular in `web/` (ADR 0032). Deployment: Docker Compose with Caddy in front, in `deploy/` (ADR 0033).
+Frontend: Angular in `web/` (ADR 0032). Deployment: Docker Compose with Caddy in front, in `deploy/` (ADR 0033). Mail: a transactional outbox with SMTP delivery (ADR 0034).
 
 It is a walking skeleton, not an empty scaffold: the cross-cutting plumbing every project needs is already built,
 tested and documented, so the first commit of a new project can be its first use case.
@@ -39,7 +39,7 @@ powershell -ExecutionPolicy Bypass -File .\rename-template.ps1 -NewName Slicice
 git config core.hooksPath .githooks
 dotnet tool restore
 
-# 1. Start local infrastructure
+# 1. Start local infrastructure: Postgres, and Mailpit catching the mail the Api sends (http://localhost:8025)
 docker compose up -d
 
 # 2. Secrets (NOT committed to git)
@@ -80,12 +80,13 @@ The whole stack as it ships — Postgres, migrations, the Api, Caddy with the ap
 | Building blocks | `Entity<TId>`, `AggregateRoot<TId>`, `Enumeration<TEnum>` (smart enum), `DomainException(code, message)` | `src/*.SharedKernel` |
 | Use cases | `Result` / `Result<T>` + `Error` (code + kind), `ICommandHandler`/`IQueryHandler`, logging and validation decorators (name, duration and outcome in the log, never the input; error codes for the client) for commands and queries, `PagedList<T>` for lists that can grow, assembly-scanning `AddApplication()` (no mediator library) | `src/*.Application/Common` |
 | Auth | ASP.NET Core Identity + JWT bearer (ADR 0031): register / login / refresh / logout / me, hashed and rotating refresh tokens with family revoke and a reload-safe grace, a fallback policy (every endpoint protected unless `.AllowAnonymous()`), `ICurrentUser`, one 401 code for every login refusal at the cost of one password hash, lockout, per-IP rate limits (429 + `Retry-After`), roles ready to seed and build policies on | `src/*.Application/Auth`, `src/*.Infrastructure/Identity`, `src/*.Api/Auth` |
+| Mail | A transactional outbox (ADR 0034): `IMailQueue` commits the mail with the use case's change; a hosted worker claims batches with `FOR UPDATE SKIP LOCKED` and a lease, sends over SMTP (MailKit) outside any transaction, backs off on failure and purges after 30 days; Handlebars templates in the app's layout, links to the web app from `IWebLinks`; Mailpit locally and in CI | `src/*.Application/Mail`, `src/*.Infrastructure/Mail`, `src/*.Infrastructure/Web` |
 | Persistence | `AppDbContext` (snake_case, UTC `DateTimeOffset`, smart-enum converter, Identity's tables renamed to match), the first migration, `IUnitOfWork` that turns unique violations and concurrency conflicts into Application exceptions (and `DiscardChanges()` to retry), retrying Npgsql, design-time factory for migrations, a reference-data seeding hook that runs after every migration | `src/*.Infrastructure` |
 | HTTP | ProblemDetails with a `code` and the W3C `traceId` on every error (422 domain, 400 validation, 401/403/404/409, framework errors, 429), API versioning + built-in OpenAPI per version typed for a generated client, strict JSON (enums by name, instants with an offset, numbers as numbers), `/health/live` + `/health/ready`, forwarded headers from known proxies only, migrations as a deploy step, JSON logs in production | `src/*.Api` |
 | Web | Angular 22 + Material 3: sign-in and registration, the session (access token in memory, rotating refresh token, one refresh across tabs), guards, errors shown by code, forms that check what the API checks, Angular i18n (English source, Croatian translation), an NSwag client generated from the OpenAPI document, Vitest and Playwright tests | `web/` |
 | Deploy | `deploy/`: Docker Compose (Postgres, a migrate step that runs before the Api serves, the Api, Caddy), two Dockerfiles, Caddy with automatic HTTPS, security headers and the app's Content-Security-Policy (the e2e tests run under it), caching that lets a release reach everyone, a backup script, a GitHub workflow that builds the images on a tag and restarts the server's stack | `deploy/`, `.github/workflows/deploy.yml` |
 | Tests | Postgres fixture + `WebApplicationFactory` on the real DI setup (a fake clock, extra settings or an empty database on request), an auth client for the tests behind sign-in, error-contract tests, DI tests that prove every handler is logged and validated, architecture tests | `tests/` |
-| Decisions | 33 baseline ADRs + open questions (tenancy, account deletion, operator access, quota races) | `docs/decisions/` |
+| Decisions | 34 baseline ADRs + open questions (tenancy, account deletion, operator access, quota races) | `docs/decisions/` |
 | Claude Code | `CLAUDE.md` per layer and test project, project reviewer agent | `CLAUDE.md`, `.claude/agents/` |
 
 ---

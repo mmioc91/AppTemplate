@@ -53,6 +53,16 @@ services:
       AllowedHosts: ${ALLOWED_HOSTS:?set ALLOWED_HOSTS};api
       # Caddy's network: the only sender whose X-Forwarded-For is believed (ADR 0029).
       Proxy__KnownNetworks: ${EDGE_SUBNET:-172.29.0.0/24}
+      # Outgoing mail (ADR 0034): a TLS-capable SMTP relay; the password only with StartTls or SslOnConnect.
+      Mail__FromAddress: ${MAIL_FROM_ADDRESS:?set MAIL_FROM_ADDRESS}
+      Mail__SmtpHost: ${MAIL_SMTP_HOST:?set MAIL_SMTP_HOST}
+      Mail__SmtpPort: ${MAIL_SMTP_PORT:-587}
+      Mail__SmtpSecurity: ${MAIL_SMTP_SECURITY:-StartTls}
+      Mail__SmtpUsername: ${MAIL_SMTP_USERNAME:-}
+      Mail__SmtpPassword: ${MAIL_SMTP_PASSWORD:-}
+      Mail__DeliveryEnabled: ${MAIL_DELIVERY_ENABLED:-true}
+      # The site's address with its scheme, for the links in mail.
+      Web__BaseUrl: ${WEB_BASE_URL:?set WEB_BASE_URL}
     depends_on:
       migrate:
         condition: service_completed_successfully

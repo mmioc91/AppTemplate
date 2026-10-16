@@ -1,4 +1,5 @@
 using AppTemplate.Infrastructure.Identity;
+using AppTemplate.Infrastructure.Mail;
 using AppTemplate.Infrastructure.Persistence.Converters;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
@@ -19,6 +20,9 @@ internal sealed class AppDbContext(DbContextOptions<AppDbContext> options)
 
     // Owned by Infrastructure, not an aggregate: the refresh tokens behind ITokenService.
     public DbSet<StoredRefreshToken> RefreshTokens => Set<StoredRefreshToken>();
+
+    // Owned by Infrastructure, not an aggregate: the mail outbox behind IMailQueue (ADR 0034).
+    public DbSet<QueuedMail> QueuedMails => Set<QueuedMail>();
 
     protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)
     {

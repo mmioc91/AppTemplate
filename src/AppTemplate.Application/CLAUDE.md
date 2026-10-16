@@ -10,7 +10,7 @@ See root `CLAUDE.md` for cross-cutting rules.
 - **Orchestrate, don't decide:** no business rules here (those live in Domain). Typical flow: load an aggregate
   through a repository port → call a domain method → persist via the port. An `if` checking a business rule in a
   use case is a smell — it belongs in Domain instead.
-- **External concerns behind ports:** define an interface in `Abstractions/` (e.g. `IEmailSender`, `I*Repository`)
+- **External concerns behind ports:** define an interface in `Abstractions/` (e.g. `IMailQueue`, `I*Repository`)
   and implement it in Infrastructure. Application never references a concrete technology directly.
 - **Errors (ADR 0008):** use cases return `Result` (no value) or `Result<T>`; an expected failure is an `Error` with a
   `code` and a kind — Validation (400), Unauthorized (401), NotFound (404), Conflict (409), Forbidden (403).
@@ -52,6 +52,11 @@ See root `CLAUDE.md` for cross-cutting rules.
   `ITokenService` persist their own writes, like Identity itself does — a refresh-token reuse must be recorded even
   though the use case fails. `Auth/` holds register, login, refresh, logout and the current user; `AuthRules` the
   input limits the validators and Identity share, so an oversized input is refused before anything is hashed.
+- **Mail (ADR 0034):** a use case that mails someone renders one of the project's templates (`Mail/MailTemplates`:
+  static `MailTemplate`s, each listing its placeholders; `MailRules` has the lengths) through `IMailRenderer` and
+  queues the result with `IMailQueue.Enqueue` before its one `SaveChangesAsync` — the mail commits with the change
+  and leaves in the background, never from the handler. A link in a mail comes from `IWebLinks` (a method per page of
+  the web app; a new page gets one, its token in the query), never from a hand-built URL.
 - **Await port calls one after another** — never `Task.WhenAll` over repositories/read-stores: behind the ports they
   share one scoped `DbContext`, which isn't thread-safe (EF throws at runtime, and only sometimes).
 - **One validator per command/query**, checking input shape only (non-empty, format, range); domain invariants stay

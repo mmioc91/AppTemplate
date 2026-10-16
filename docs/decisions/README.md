@@ -42,6 +42,7 @@ the code implements it and every choice that had to be made along the way.
 | 0031 | [Authentication: ASP.NET Core Identity with JWT bearer tokens](0031-identity-with-jwt-bearer-tokens.md) | Accepted | 2026-10-14 |
 | 0032 | [The web app: Angular, translated through i18n, on a generated client](0032-angular-frontend-setup.md) | Accepted | 2026-10-16 |
 | 0033 | [Deployment: one host with Docker Compose, Caddy in front, the security headers and the CSP at the proxy](0033-one-host-with-docker-compose-and-caddy.md) | Accepted | 2026-10-16 |
+| 0034 | [Mail leaves through an outbox in the unit of work, claimed with a lease, sent outside any transaction](0034-mail-through-an-outbox-claimed-with-a-lease.md) | Accepted | 2026-10-16 |
 
 ## Open questions
 
