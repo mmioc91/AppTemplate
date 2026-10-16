@@ -40,7 +40,7 @@ needs it.
 
 | # | Step | Notes |
 |---|---|---|
-| 1 | The first aggregate and its first use case, end to end over HTTP | settles the authentication scheme if the use case needs a signed-in user |
+| 1 | The first aggregate and its first use case, end to end over HTTP | sign-in is built (ADR 0031): the user comes from `ICurrentUser`; add a role and a policy only if the use case needs one |
 
 ## Deferred
 

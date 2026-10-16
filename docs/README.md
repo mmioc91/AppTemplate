@@ -26,7 +26,7 @@ Suggested names; what matters is that each kind of truth has one home.
 | `application.md` | use cases, ports, cross-aggregate rules | the orchestration |
 | `infrastructure.md` | persistence mapping, external systems, jobs | the adapters |
 | `/openapi/v1.json` (generated) | endpoints and DTO shapes, as the typed client is generated from it (ADR 0009, 0027) | the HTTP contract |
-| `api.md` | what the OpenAPI document cannot carry: the error codes each endpoint answers, flows across endpoints | the HTTP contract's rules |
+| `api.md` | what the OpenAPI document cannot carry: the error codes each endpoint answers, flows across endpoints. Until a project writes it, the auth endpoints' codes and flows (register/login → refresh with rotation and its grace → logout; sign in again on `AUTH_INVALID_REFRESH_TOKEN`) are in [ADR 0031](decisions/0031-identity-with-jwt-bearer-tokens.md) | the HTTP contract's rules |
 | `frontend-brief.md` | screens and flows; points at the two rows above instead of copying them | the hand-off |
 | `decisions/` | ADRs | *how*, wherever a doc above and the code disagree |
 

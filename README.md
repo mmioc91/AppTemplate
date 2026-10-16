@@ -46,14 +46,16 @@ docker compose up -d
 cd src/AppTemplate.Api
 dotnet user-secrets init
 dotnet user-secrets set "ConnectionStrings:Db" "Host=localhost;Database=apptemplate;Username=postgres;Password=dev"
+# The JWT signing key: 32+ random bytes in base64 (bash: openssl rand -base64 32); the Api refuses to start without it
+dotnet user-secrets set "Jwt:SigningKey" ([Convert]::ToBase64String([System.Security.Cryptography.RandomNumberGenerator]::GetBytes(32)))
 cd ../..
 
 # 3. Run (Development applies migrations on startup and serves /openapi/v1.json)
 dotnet run --project src/AppTemplate.Api
 
-# Production (ADR 0028, 0029): logs are JSON lines on the console; migrations are a deploy step — the same build
+# Production (ADR 0028, 0029, 0031): logs are JSON lines on the console; migrations are a deploy step — the same build
 # with Database__MigrateAndExit=true migrates and exits; forwarded headers are trusted from Proxy__KnownNetworks only;
-# set AllowedHosts to the real host.
+# set AllowedHosts to the real host and Jwt__SigningKey to a key of its own.
 ```
 
 Integration tests start their own Postgres with Testcontainers — Docker must be running.
@@ -66,10 +68,11 @@ Integration tests start their own Postgres with Testcontainers — Docker must b
 |---|---|---|
 | Building blocks | `Entity<TId>`, `AggregateRoot<TId>`, `Enumeration<TEnum>` (smart enum), `DomainException(code, message)` | `src/*.SharedKernel` |
 | Use cases | `Result` / `Result<T>` + `Error` (code + kind), `ICommandHandler`/`IQueryHandler`, logging and validation decorators (name, duration and outcome in the log, never the input; error codes for the client) for commands and queries, `PagedList<T>` for lists that can grow, assembly-scanning `AddApplication()` (no mediator library) | `src/*.Application/Common` |
-| Persistence | `AppDbContext` (snake_case, UTC `DateTimeOffset`, smart-enum converter), `IUnitOfWork` that turns unique violations and concurrency conflicts into Application exceptions (and `DiscardChanges()` to retry), retrying Npgsql, design-time factory for migrations | `src/*.Infrastructure` |
+| Auth | ASP.NET Core Identity + JWT bearer (ADR 0031): register / login / refresh / logout / me, hashed and rotating refresh tokens with family revoke and a reload-safe grace, a fallback policy (every endpoint protected unless `.AllowAnonymous()`), `ICurrentUser`, one 401 code for every login refusal at the cost of one password hash, lockout, per-IP rate limits (429 + `Retry-After`), roles ready to seed and build policies on | `src/*.Application/Auth`, `src/*.Infrastructure/Identity`, `src/*.Api/Auth` |
+| Persistence | `AppDbContext` (snake_case, UTC `DateTimeOffset`, smart-enum converter, Identity's tables renamed to match), the first migration, `IUnitOfWork` that turns unique violations and concurrency conflicts into Application exceptions (and `DiscardChanges()` to retry), retrying Npgsql, design-time factory for migrations, a reference-data seeding hook that runs after every migration | `src/*.Infrastructure` |
 | HTTP | ProblemDetails with a `code` and the W3C `traceId` on every error (422 domain, 400 validation, 401/403/404/409, framework errors, 429), API versioning + built-in OpenAPI per version typed for a generated client, strict JSON (enums by name, instants with an offset, numbers as numbers), `/health/live` + `/health/ready`, forwarded headers from known proxies only, migrations as a deploy step, JSON logs in production | `src/*.Api` |
-| Tests | Postgres fixture + `WebApplicationFactory` on the real DI setup (a fake clock, extra settings or an empty database on request), error-contract tests, DI tests that prove every handler is logged and validated, architecture tests | `tests/` |
-| Decisions | 30 baseline ADRs + open questions (auth scheme, tenancy, hosting platform, account deletion, operator access, quota races) | `docs/decisions/` |
+| Tests | Postgres fixture + `WebApplicationFactory` on the real DI setup (a fake clock, extra settings or an empty database on request), an auth client for the tests behind sign-in, error-contract tests, DI tests that prove every handler is logged and validated, architecture tests | `tests/` |
+| Decisions | 31 baseline ADRs + open questions (tenancy, hosting platform, account deletion, operator access, quota races) | `docs/decisions/` |
 | Claude Code | `CLAUDE.md` per layer and test project, project reviewer agent | `CLAUDE.md`, `.claude/agents/` |
 
 ---

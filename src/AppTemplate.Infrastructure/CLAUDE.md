@@ -10,7 +10,8 @@ See root `CLAUDE.md` for cross-cutting rules.
   in `AppDbContext.ConfigureConventions` (an ID converter is one line:
   `internal sealed class OrderIdConverter() : ValueConverter<OrderId, Guid>(id => id.Value, value => new OrderId(value));`).
   `EFCore.NamingConventions` handles snake_case column/table names for Postgres — don't hand-name them, and don't
-  hand-name indexes or constraints either (no `HasDatabaseName`); use `jsonb` where a document fits better than a
+  hand-name indexes or constraints either (no `HasDatabaseName`; the one exception is `AppDbContext.RenameIdentityTables`,
+  below); use `jsonb` where a document fits better than a
   normalized table; Fluent API (`IEntityTypeConfiguration<>` in `Persistence/Configurations/`), not attributes on
   entities. A value object with a single value (`Slug`) is stored as that value through a converter registered in
   `ConfigureConventions`, like the IDs, and read back through its factory, so it can carry an index and be compared in
@@ -68,6 +69,24 @@ See root `CLAUDE.md` for cross-cutting rules.
   Commands). Applied on startup in Development only (`MigrateDatabaseAsync`); in production as a separate deploy
   step — the Api started with `Database:MigrateAndExit=true` migrates and exits (ADR 0029). Never edit a migration
   that has been pushed — add a new one. A model change and its migration go in the same commit.
+- **Identity (ADR 0031):** `AppDbContext` is an `IdentityDbContext`; Identity's tables and its three explicitly named
+  indexes are renamed in `AppDbContext.RenameIdentityTables` (the only hand-written names in the model) **before**
+  our configurations are applied, so foreign keys are named after `users`; the e-mail index is made unique there.
+  `Identity/` holds the user, the `refresh_tokens` entity and the two auth ports (`IdentityService` on `UserManager`,
+  `TokenService` for JWTs and hashed, rotating refresh tokens); both save their own changes, and every login refusal
+  costs a password hash (`IdentityService.CheckPasswordAsync`). Gotcha: `UserManager` reports a lost race on the
+  user row's concurrency stamp as a failed `IdentityResult` — it never throws — and leaves the entry Modified, so the
+  next `SaveChanges` of the scope replays the stale write and fails: check every result of a `UserManager` write that
+  can race, reload the row and go again (`IdentityService` does this for the failed-attempt count). `JwtOptions` lives
+  here (the token service signs with it) and is bound by the Api; `DependencyInjection.ConfigureIdentity` is shared
+  with the design-time factory, so Identity's store options (schema version, key lengths) shape the migrations too.
+- **Reference data (ADR 0031):** inserted if missing by well-known id after every `Migrate`, through EF's seeding
+  hook in `DependencyInjection.Configure` (`UseSeeding`/`UseAsyncSeeding`, so `dotnet ef database update` seeds too),
+  straight through the `DbContext` — no managers, nothing else is registered where migrations run — and only when no
+  migration is pending, so a revert never seeds a table that is gone. `RoleSeed` + `RoleSeeder` is the pattern: a
+  project's roles go into `RoleSeed`, other reference data gets a seeder of the same shape next to it (it clears the
+  tracker first, so a retried migration doesn't meet its own rolled-back rows), called from the same hook. Never
+  `HasData` — it diffs the data into every migration.
 - Register all Infrastructure services/ports from `AddInfrastructure(...)`, called once from `Program.cs`. A missing
   connection string fails there with a message naming the setting.
 

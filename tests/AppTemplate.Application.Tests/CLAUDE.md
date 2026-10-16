@@ -11,7 +11,8 @@ for the rules this project tests.
   shared types in `Common/`. Each use case's end-to-end test — real Postgres, persistence, HTTP — lives in
   `Integration.Tests` (ADR 0010).
 - **`DependencyInjectionTests`** resolves every registered handler through `AddApplication()`: when a new handler
-  needs a port, register it there as a substitute (`BuildServices`) or the test fails — which is the point. The
+  needs a port, register it there as a substitute (`BuildServices`; the auth ports `IIdentityService`,
+  `ITokenService` and `ICurrentUser` are there already) or the test fails — which is the point. The
   sample use cases in `Samples/` exercise the registration itself (every handler kind, decorated with logging then
   validation, concrete type not resolvable); leave them in place.
 - **Logging is asserted with `FakeLogger`** (`Microsoft.Extensions.Diagnostics.Testing`; `AddFakeLogging()` +

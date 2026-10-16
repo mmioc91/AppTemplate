@@ -15,7 +15,7 @@ See root `CLAUDE.md` for cross-cutting rules.
 - **Errors (ADR 0008):** use cases return `Result` (no value) or `Result<T>`; an expected failure is an `Error` with a
   `code` and a kind — Validation (400), Unauthorized (401), NotFound (404), Conflict (409), Forbidden (403).
   `DomainException` only comes from Domain (422). Shared codes go in `Common/CommonErrors` (today
-  `ConcurrencyConflict()`, ADR 0023), use-case codes in `<UseCase>Errors`; never rename or reuse one.
+  `ConcurrencyConflict()`, ADR 0023), an area's codes in `<Area>Errors` (`Auth/AuthErrors`); never rename or reuse one.
 - **Mapping:** build response DTOs explicitly from the aggregate (`order.Id.Value`, `order.Status.Name`) — never
   return an aggregate or EF entity from a use case. Mapster only for large flat one-to-one mappings (ADR 0014).
 - **No mediator library** (ADR 0011): own handler interfaces in `Common/` — `ICommandHandler<TCommand>` (returns
@@ -46,15 +46,23 @@ See root `CLAUDE.md` for cross-cutting rules.
 - **Layout:** one folder per aggregate, one sub-folder per use case (`Orders/PlaceOrder/PlaceOrderCommand.cs`,
   `…Validator.cs`, `…Handler.cs`, `…Response.cs`); ports in `Abstractions/`, shared types in `Common/`.
 - **Who is asking** (current user, tenant) comes from ports the Api fills per request — never from command or query
-  input.
+  input. Today that is `ICurrentUser` (`UserId`, `IsAuthenticated`, `IsInRole`); the role names are `Auth/Roles`
+  (empty until the project adds its own, with their seed rows in Infrastructure).
+- **Auth use cases are the exception to "one `SaveChangesAsync`"** (ADR 0031): `IIdentityService` and
+  `ITokenService` persist their own writes, like Identity itself does — a refresh-token reuse must be recorded even
+  though the use case fails. `Auth/` holds register, login, refresh, logout and the current user; `AuthRules` the
+  input limits the validators and Identity share, so an oversized input is refused before anything is hashed.
 - **Await port calls one after another** — never `Task.WhenAll` over repositories/read-stores: behind the ports they
   share one scoped `DbContext`, which isn't thread-safe (EF throws at runtime, and only sometimes).
 - **One validator per command/query**, checking input shape only (non-empty, format, range); domain invariants stay
   in Domain. Every rule sets `.WithErrorCode(ValidationCodes.X)` — generic codes (`REQUIRED`, `TOO_SHORT`, `TOO_LONG`,
   `INVALID`, `NOT_POSITIVE`, `TOO_LARGE`, `NOT_ALLOWED`; add one only for a genuinely new kind of problem); the
   validation decorator reports field → codes, never messages (ADR 0012). Validator tests assert the codes (`FluentValidation.TestHelper`).
-  Every free-text field has a max length. A mandatory value-type field is nullable and starts with
-  `NotNull().WithErrorCode(ValidationCodes.Required)` (ADR 0020).
+  Every free-text field has a max length, and text that is stored or looked up refuses what Postgres can't hold
+  (`Common/TextRules`, each with `ValidationCodes.Invalid` — a NUL in text is a 500 otherwise):
+  `.WithoutControlCharacters()` for one-line text (names, titles), `.WithoutWhiteSpace()` for an identifier such as
+  an email, `.WithoutNulCharacters()` for multi-line text (a note, a description), which keeps its line breaks. A mandatory value-type
+  field is nullable and starts with `NotNull().WithErrorCode(ValidationCodes.Required)` (ADR 0020).
 - **Cross-aggregate orchestration lives here**, never in an aggregate (e.g. "count existing X before creating a Y").
 - **Time and IDs** are resolved here — time from the injected `TimeProvider` (`AddApplication` registers the system
   clock unless one is already registered), IDs with `Guid.CreateVersion7()` wrapped in the strongly-typed ID (no ID

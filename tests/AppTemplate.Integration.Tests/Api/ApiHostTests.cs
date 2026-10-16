@@ -3,11 +3,13 @@ using System.Text.Json;
 using AppTemplate.Api;
 using AppTemplate.Api.Errors;
 using AppTemplate.Api.Health;
+using AppTemplate.Infrastructure.Identity;
 using AppTemplate.Integration.Tests.Persistence;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
 using Microsoft.Extensions.Time.Testing;
 using Shouldly;
@@ -39,6 +41,23 @@ public sealed class ApiHostTests(PostgresFixture postgres)
         // Assert
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
         (await response.Content.ReadAsStringAsync()).ShouldBe("Healthy");
+    }
+
+    [Fact]
+    public async Task Health_UnmigratedDatabaseInProduction_LiveIs200ButReadyIs503()
+    {
+        // Arrange: production never migrates on startup, so a deploy that skipped the migration step must stay out of
+        // rotation without being restarted (ADR 0019, 0029).
+        await using ApiFactory factory = new(await postgres.CreateEmptyDatabaseAsync(), Environments.Production);
+        using HttpClient client = factory.CreateClient();
+
+        // Act
+        HttpResponseMessage live = await client.GetAsync(new Uri(HealthEndpoints.Live, UriKind.Relative));
+        HttpResponseMessage ready = await client.GetAsync(new Uri(HealthEndpoints.Ready, UriKind.Relative));
+
+        // Assert
+        live.StatusCode.ShouldBe(HttpStatusCode.OK);
+        ready.StatusCode.ShouldBe(HttpStatusCode.ServiceUnavailable);
     }
 
     [Fact]
@@ -113,7 +132,7 @@ public sealed class ApiHostTests(PostgresFixture postgres)
 
         // Assert: the framework's own errors carry a code too (ADR 0018).
         response.StatusCode.ShouldBe(HttpStatusCode.NotFound);
-        response.Content.Headers.ContentType?.MediaType.ShouldBe("application/problem+json");
+        response.Content.Headers.ContentType.ShouldNotBeNull().MediaType.ShouldBe("application/problem+json");
         using var body = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
         body.RootElement.GetProperty("code").GetString().ShouldBe(ProblemCodes.NotFound);
     }
@@ -132,6 +151,87 @@ public sealed class ApiHostTests(PostgresFixture postgres)
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
         using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
         document.RootElement.TryGetProperty("openapi", out _).ShouldBeTrue();
+    }
+
+    [Theory]
+    [InlineData("GET", "/api/v1/auth/login")]
+    [InlineData("POST", "/api/v1/auth/me")]
+    public async Task WrongMethod_WithoutAToken_Answers405NotA401(string method, string path)
+    {
+        // Arrange: the fallback policy would otherwise hide a wrong method behind a sign-in (ADR 0031).
+        await using ApiFactory factory = new(postgres);
+        using HttpClient client = factory.CreateClient();
+        using HttpRequestMessage request = new(new HttpMethod(method), new Uri(path, UriKind.Relative));
+
+        // Act
+        HttpResponseMessage response = await client.SendAsync(request);
+
+        // Assert
+        response.StatusCode.ShouldBe(HttpStatusCode.MethodNotAllowed);
+        using var body = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        body.RootElement.GetProperty("code").GetString().ShouldBe(ProblemCodes.MethodNotAllowed);
+    }
+
+    [Fact]
+    public async Task WrongContentType_WithoutAToken_Answers415NotA401()
+    {
+        // Arrange
+        await using ApiFactory factory = new(postgres);
+        using HttpClient client = factory.CreateClient();
+        using StringContent content = new("{}", System.Text.Encoding.UTF8, "text/plain");
+
+        // Act
+        HttpResponseMessage response = await client.PostAsync(new Uri("/api/v1/auth/login", UriKind.Relative), content);
+
+        // Assert
+        response.StatusCode.ShouldBe(HttpStatusCode.UnsupportedMediaType);
+        using var body = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        body.RootElement.GetProperty("code").GetString().ShouldBe(ProblemCodes.UnsupportedMediaType);
+    }
+
+    public static TheoryData<string> UnusableSigningKeys => new()
+    {
+        string.Empty,
+        "not base64!",
+        Convert.ToBase64String(new byte[JwtOptions.MinSigningKeyBytes - 1]),
+    };
+
+    [Theory]
+    [MemberData(nameof(UnusableSigningKeys))]
+    public async Task Startup_UnusableSigningKey_FailsNamingTheSetting(string key)
+    {
+        // Arrange: a host without a usable key must not start (ADR 0031) — not serve, and fail on every request.
+        await using ApiFactory factory = new(postgres, settings: new Dictionary<string, string> { ["Jwt:SigningKey"] = key });
+
+        // Act
+        Action act = () => factory.CreateClient();
+
+        // Assert
+        OptionsValidationException exception = Should.Throw<OptionsValidationException>(act);
+        exception.OptionsType.ShouldBe(typeof(JwtOptions));
+        exception.Message.ShouldContain(nameof(JwtOptions.SigningKey));
+    }
+
+    // Every endpoint declares exactly the statuses a client can meet (ADR 0009): one row per endpoint, added with it.
+    [Theory]
+    [InlineData("/api/v1/auth/register", "post", new[] { "201", "400", "409", "429" })]
+    [InlineData("/api/v1/auth/login", "post", new[] { "200", "400", "401", "429" })]
+    [InlineData("/api/v1/auth/refresh", "post", new[] { "200", "400", "401", "429" })]
+    [InlineData("/api/v1/auth/logout", "post", new[] { "204", "400", "401" })]
+    [InlineData("/api/v1/auth/me", "get", new[] { "200", "401", "404" })]
+    public async Task OpenApiDocument_Endpoint_DeclaresExactlyTheseStatuses(string path, string method, string[] statuses)
+    {
+        // Arrange
+        await using ApiFactory factory = new(postgres);
+        using HttpClient client = factory.CreateClient();
+
+        // Act
+        HttpResponseMessage response = await client.GetAsync(new Uri("/openapi/v1.json", UriKind.Relative));
+
+        // Assert
+        using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        JsonElement operation = document.RootElement.GetProperty("paths").GetProperty(path).GetProperty(method);
+        operation.GetProperty("responses").EnumerateObject().Select(status => status.Name).ShouldBe(statuses, ignoreOrder: true);
     }
 
     [Fact]
