@@ -70,6 +70,12 @@ Don't flag anything the build already enforces (analyzers, `.editorconfig` error
   and a rate limit if it is a way in or tells whether an account exists; it declares 401, and 403 under a policy.
 - New Options classes are bound in `Program.cs` with `ValidateOnStart`.
 
+### Web
+- The rules in `web/CLAUDE.md`: every visible text marked for translation with an explicit id and its Croatian target,
+  errors shown by code through `error-messages.ts`, forms that check exactly what the API checks, no token handled
+  outside `AuthService`, the generated client regenerated (never edited) with a contract change, a new screen's main
+  flow in `e2e/`.
+
 ### Tests
 - New or changed behavior has tests in the right project (`tests/CLAUDE.md`, ADR 0010); use cases have the
   integration checklist.

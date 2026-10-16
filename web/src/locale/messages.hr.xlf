@@ -1,0 +1,295 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<xliff version="1.2" xmlns="urn:oasis:names:tc:xliff:document:1.2">
+  <file source-language="en" target-language="hr" datatype="plaintext" original="ng2.template">
+    <body>
+      <trans-unit id="title.login" datatype="html">
+        <source>Sign in · AppTemplate</source>
+        <target>Prijava · AppTemplate</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/app.routes.ts</context>
+          <context context-type="linenumber">11</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="title.register" datatype="html">
+        <source>Register · AppTemplate</source>
+        <target>Registracija · AppTemplate</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/app.routes.ts</context>
+          <context context-type="linenumber">17</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="title.home" datatype="html">
+        <source>AppTemplate</source>
+        <target>AppTemplate</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/app.routes.ts</context>
+          <context context-type="linenumber">28</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="error.dismiss" datatype="html">
+        <source>Close</source>
+        <target>Zatvori</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/core/http/error-interceptor.ts</context>
+          <context context-type="linenumber">33</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="error.offline" datatype="html">
+        <source>The server can&apos;t be reached. Check your connection and try again.</source>
+        <target>Poslužitelj nije dostupan. Provjerite vezu i pokušajte ponovno.</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/core/http/error-interceptor.ts</context>
+          <context context-type="linenumber">38</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="error.server" datatype="html">
+        <source>Something went wrong on our side. Reference: <x id="traceId" equiv-text="traceId"/></source>
+        <target>Nešto je pošlo po zlu na našoj strani. Referenca: <x id="traceId" equiv-text="traceId"/></target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/core/http/error-interceptor.ts</context>
+          <context context-type="linenumber">44</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="error.serverNoReference" datatype="html">
+        <source>Something went wrong on our side.</source>
+        <target>Nešto je pošlo po zlu na našoj strani.</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/core/http/error-interceptor.ts</context>
+          <context context-type="linenumber">45</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="error.required" datatype="html">
+        <source>This field is required.</source>
+        <target>Ovo polje je obavezno.</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/core/http/error-messages.ts</context>
+          <context context-type="linenumber">5</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="error.invalid" datatype="html">
+        <source>This value isn&apos;t valid.</source>
+        <target>Ova vrijednost nije ispravna.</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/core/http/error-messages.ts</context>
+          <context context-type="linenumber">6</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="error.tooShort" datatype="html">
+        <source>This value is too short.</source>
+        <target>Ova vrijednost je prekratka.</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/core/http/error-messages.ts</context>
+          <context context-type="linenumber">7</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="error.tooLong" datatype="html">
+        <source>This value is too long.</source>
+        <target>Ova vrijednost je preduga.</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/core/http/error-messages.ts</context>
+          <context context-type="linenumber">8</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="error.notPositive" datatype="html">
+        <source>Enter a number greater than zero.</source>
+        <target>Upišite broj veći od nule.</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/core/http/error-messages.ts</context>
+          <context context-type="linenumber">9</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="error.tooLarge" datatype="html">
+        <source>Enter a smaller number.</source>
+        <target>Upišite manji broj.</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/core/http/error-messages.ts</context>
+          <context context-type="linenumber">10</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="error.notAllowed" datatype="html">
+        <source>This value isn&apos;t allowed here.</source>
+        <target>Ova vrijednost ovdje nije dopuštena.</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/core/http/error-messages.ts</context>
+          <context context-type="linenumber">11</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="error.notFound" datatype="html">
+        <source>This no longer exists.</source>
+        <target>Ovo više ne postoji.</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/core/http/error-messages.ts</context>
+          <context context-type="linenumber">12</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="error.forbidden" datatype="html">
+        <source>You aren&apos;t allowed to do this.</source>
+        <target>Nemate dopuštenje za ovo.</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/core/http/error-messages.ts</context>
+          <context context-type="linenumber">13</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="error.concurrencyConflict" datatype="html">
+        <source>This changed in the meantime. Here it is as it is now.</source>
+        <target>Ovo se u međuvremenu promijenilo. Evo kako sada izgleda.</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/core/http/error-messages.ts</context>
+          <context context-type="linenumber">14</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="error.tooManyRequests" datatype="html">
+        <source>Too many attempts. Wait a minute and try again.</source>
+        <target>Previše pokušaja. Pričekajte minutu i pokušajte ponovno.</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/core/http/error-messages.ts</context>
+          <context context-type="linenumber">15</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="error.invalidCredentials" datatype="html">
+        <source>Wrong e-mail address or password.</source>
+        <target>Pogrešna e-mail adresa ili lozinka.</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/core/http/error-messages.ts</context>
+          <context context-type="linenumber">16</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="error.emailTaken" datatype="html">
+        <source>An account with this e-mail address already exists.</source>
+        <target>Račun s ovom e-mail adresom već postoji.</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/core/http/error-messages.ts</context>
+          <context context-type="linenumber">17</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="error.unexpected" datatype="html">
+        <source>Something went wrong. Please try again.</source>
+        <target>Nešto je pošlo po zlu. Pokušajte ponovno.</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/core/http/error-messages.ts</context>
+          <context context-type="linenumber">20</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="login.title" datatype="html">
+        <source>Sign in</source>
+        <target>Prijava</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/features/auth/login-page.html</context>
+          <context context-type="linenumber">3,4</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="auth.email" datatype="html">
+        <source>E-mail address</source>
+        <target>E-mail adresa</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/features/auth/login-page.html</context>
+          <context context-type="linenumber">9,10</context>
+        </context-group>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/features/auth/register-page.html</context>
+          <context context-type="linenumber">9,10</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="auth.password" datatype="html">
+        <source>Password</source>
+        <target>Lozinka</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/features/auth/login-page.html</context>
+          <context context-type="linenumber">17,18</context>
+        </context-group>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/features/auth/register-page.html</context>
+          <context context-type="linenumber">17,18</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="login.submit" datatype="html">
+        <source>Sign in</source>
+        <target>Prijavi se</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/features/auth/login-page.html</context>
+          <context context-type="linenumber">28,30</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="login.toRegister" datatype="html">
+        <source>No account yet? Register</source>
+        <target>Nemate račun? Registrirajte se</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/features/auth/login-page.html</context>
+          <context context-type="linenumber">33,35</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="register.title" datatype="html">
+        <source>Register</source>
+        <target>Registracija</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/features/auth/register-page.html</context>
+          <context context-type="linenumber">3,4</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="register.passwordHint" datatype="html">
+        <source>At least <x id="INTERPOLATION" equiv-text="{{ rules.passwordMinLength }}"/> characters</source>
+        <target>Najmanje <x id="INTERPOLATION" equiv-text="{{ rules.passwordMinLength }}"/> znakova</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/features/auth/register-page.html</context>
+          <context context-type="linenumber">19,20</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="register.displayName" datatype="html">
+        <source>Name</source>
+        <target>Ime</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/features/auth/register-page.html</context>
+          <context context-type="linenumber">26,27</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="register.submit" datatype="html">
+        <source>Register</source>
+        <target>Registriraj se</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/features/auth/register-page.html</context>
+          <context context-type="linenumber">37,39</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="register.toLogin" datatype="html">
+        <source>Already registered? Sign in</source>
+        <target>Već imate račun? Prijavite se</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/features/auth/register-page.html</context>
+          <context context-type="linenumber">42,44</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="home.title" datatype="html">
+        <source>Home</source>
+        <target>Početna</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/features/home/home-page.ts</context>
+          <context context-type="linenumber">8,9</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="home.welcome" datatype="html">
+        <source>Signed in as <x id="INTERPOLATION" equiv-text="{{ user.displayName }}"/>.</source>
+        <target>Prijavljeni ste kao <x id="INTERPOLATION" equiv-text="{{ user.displayName }}"/>.</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/features/home/home-page.ts</context>
+          <context context-type="linenumber">10,13</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="app.name" datatype="html">
+        <source>AppTemplate</source>
+        <target>AppTemplate</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/layout/shell/shell.html</context>
+          <context context-type="linenumber">2,3</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="shell.signOut" datatype="html">
+        <source> Sign out </source>
+        <target>Odjava</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/layout/shell/shell.html</context>
+          <context context-type="linenumber">8,10</context>
+        </context-group>
+      </trans-unit>
+    </body>
+  </file>
+</xliff>

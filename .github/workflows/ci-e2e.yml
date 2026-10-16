@@ -1,0 +1,116 @@
+name: e2e
+
+on:
+  pull_request:
+    paths:
+      - 'web/**'
+      - 'src/**'
+      - 'Directory.*.props'
+      - '.github/workflows/ci-e2e.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'web/**'
+      - 'src/**'
+      - 'Directory.*.props'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: e2e-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # The app against the real API and a fresh Postgres (ADR 0032). Path-filtered, so never a required check (a PR that
+  # touches neither would wait for it forever).
+  web-e2e:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_DB: apptemplate
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      ConnectionStrings__Db: Host=localhost;Database=apptemplate;Username=postgres;Password=ci
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v4
+
+      # The template's web/ may have been removed by a project without a frontend: then there is nothing to run.
+      - name: Is there a web app?
+        id: web
+        working-directory: .
+        run: echo "present=$([ -f web/package.json ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/setup-dotnet@v4
+        if: steps.web.outputs.present == 'true'
+        with:
+          dotnet-version: '10.x'
+
+      - uses: actions/setup-node@v4
+        if: steps.web.outputs.present == 'true'
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: web/package-lock.json
+
+      - if: steps.web.outputs.present == 'true'
+        run: npm ci
+
+      # A signing key of this run's own: the API refuses to start without one (ADR 0031).
+      - name: Signing key
+        if: steps.web.outputs.present == 'true'
+        run: echo "Jwt__SigningKey=$(openssl rand -base64 32)" >> "$GITHUB_ENV"
+
+      # Started here, not by Playwright, so the generated client can be checked against it first; Playwright reuses it.
+      # Development (the http profile) migrates on start and raises the sign-in rate limit for the suite.
+      - name: Start the API
+        if: steps.web.outputs.present == 'true'
+        working-directory: .
+        run: |
+          nohup dotnet run --project src/AppTemplate.Api --launch-profile http > api.log 2>&1 &
+          for attempt in $(seq 1 120); do
+            curl -sf http://localhost:5062/health/ready && exit 0
+            sleep 2
+          done
+          cat api.log
+          exit 1
+
+      # The committed client must be what the API's contract generates (web/CLAUDE.md): a backend change that alters
+      # the contract regenerates it in the same PR.
+      - name: Generated API client is up to date
+        if: steps.web.outputs.present == 'true'
+        run: |
+          npm run api
+          git diff --exit-code -- src/app/core/api
+
+      - if: steps.web.outputs.present == 'true'
+        run: npx playwright install --with-deps chromium
+
+      - if: steps.web.outputs.present == 'true'
+        run: npm run e2e
+
+      # A test that met a 500 has only the trace id in its trace; the exception is in the API's log.
+      - name: API log
+        if: failure() && steps.web.outputs.present == 'true'
+        working-directory: .
+        run: cat api.log
+
+      - uses: actions/upload-artifact@v4
+        if: failure() && steps.web.outputs.present == 'true'
+        with:
+          name: playwright-report
+          path: web/playwright-report
+          retention-days: 7

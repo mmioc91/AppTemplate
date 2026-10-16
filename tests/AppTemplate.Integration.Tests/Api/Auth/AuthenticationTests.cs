@@ -296,7 +296,7 @@ public sealed class AuthenticationTests(PostgresFixture postgres)
         using HttpClient client = factory.CreateClient();
         string email = AuthClient.UniqueEmail();
 
-        for (int attempt = 0; attempt < AuthRateLimiting.PermitLimit; attempt++)
+        for (int attempt = 0; attempt < AuthRateLimitOptions.DefaultPerMinute; attempt++)
         {
             (await AuthClient.LoginAsync(client, email)).StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
         }
@@ -311,6 +311,23 @@ public sealed class AuthenticationTests(PostgresFixture postgres)
     }
 
     [Fact]
+    public async Task Login_TheHostsLimit_IsTheWindow()
+    {
+        // Arrange: a host that raised or lowered the limit (RateLimits:AuthPerMinute).
+        await using ApiFactory factory = new(postgres, settings: new Dictionary<string, string> { ["RateLimits:AuthPerMinute"] = "2" });
+        using HttpClient client = factory.CreateClient();
+        string email = AuthClient.UniqueEmail();
+        (await AuthClient.LoginAsync(client, email)).StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
+        (await AuthClient.LoginAsync(client, email)).StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
+
+        // Act
+        HttpResponseMessage response = await AuthClient.LoginAsync(client, email);
+
+        // Assert
+        response.StatusCode.ShouldBe(HttpStatusCode.TooManyRequests);
+    }
+
+    [Fact]
     public async Task Refresh_AfterTheSignInWindowIsSpent_HasAWindowOfItsOwn()
     {
         // Arrange: the sign-in window used up — by one registration and failed logins.
@@ -318,7 +335,7 @@ public sealed class AuthenticationTests(PostgresFixture postgres)
         using HttpClient client = factory.CreateClient();
         AuthClient.TokenPair tokens = await AuthClient.RegisterAsync(client);
 
-        for (int attempt = 1; attempt < AuthRateLimiting.PermitLimit; attempt++)
+        for (int attempt = 1; attempt < AuthRateLimitOptions.DefaultPerMinute; attempt++)
         {
             await AuthClient.LoginAsync(client, AuthClient.UniqueEmail());
         }
@@ -361,7 +378,7 @@ public sealed class AuthenticationTests(PostgresFixture postgres)
 
         // Act
         List<HttpStatusCode> statuses = [];
-        for (int call = 0; call < AuthRateLimiting.PermitLimit + 1; call++)
+        for (int call = 0; call < AuthRateLimitOptions.DefaultPerMinute + 1; call++)
         {
             statuses.Add((await client.GetAsync(AuthClient.Me)).StatusCode);
         }
@@ -372,7 +389,7 @@ public sealed class AuthenticationTests(PostgresFixture postgres)
 
     private static async Task SpendTheSignInWindowAsync(HttpClient client)
     {
-        for (int attempt = 0; attempt < AuthRateLimiting.PermitLimit; attempt++)
+        for (int attempt = 0; attempt < AuthRateLimitOptions.DefaultPerMinute; attempt++)
         {
             (await AuthClient.LoginAsync(client, AuthClient.UniqueEmail())).StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
         }

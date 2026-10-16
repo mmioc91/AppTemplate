@@ -37,7 +37,8 @@ tests and Api-level functional tests.
   `new ApiFactory(connectionString, environment)` for another database or environment; `new ApiFactory(postgres, time)`
   with a `FakeTimeProvider` replaces the clock for the whole host — token issuing and validation included, so it
   expires tokens (not Identity's lockout or the rate limiter, which keep the system clock); `new ApiFactory(postgres, settings: …)` adds configuration as command-line settings, above
-  appsettings files and environment variables; the JWT signing key is `ApiFactory.SigningKey`, never a real one).
+  appsettings files and environment variables; the JWT signing key is `ApiFactory.SigningKey`, never a real one; the sign-in rate limit is pinned to production's
+  `AuthRateLimitOptions.DefaultPerMinute`, not Development's raised one).
   `Api/Auth/AuthClient` drives the auth endpoints as a client would; `AuthenticationTests` pins the host-wide auth
   behavior (fallback policy, token validation, claims, rate limits), `AuthEndpointsTests` the endpoints. Never
   `RemoveAll<DbContextOptions<AppDbContext>>()` and re-register it — that drops `UseSnakeCaseNamingConvention()` and

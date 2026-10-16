@@ -1,0 +1,14 @@
+<mat-toolbar class="toolbar">
+  <a class="app-name" routerLink="/" i18n="@@app.name">AppTemplate</a>
+  <span class="spacer"></span>
+  @if (auth.user(); as user) {
+    <span class="user">{{ user.displayName }}</span>
+  }
+  <button mat-button type="button" (click)="signOut()" [disabled]="signingOut()" i18n="@@shell.signOut">
+    Sign out
+  </button>
+</mat-toolbar>
+
+<main>
+  <router-outlet />
+</main>

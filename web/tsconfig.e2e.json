@@ -1,0 +1,9 @@
+/* The end-to-end tests and their config: type-checked by `npm run lint` (Playwright itself only strips the types). */
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "types": ["node"]
+  },
+  "include": ["e2e/**/*.ts", "playwright.config.ts"]
+}

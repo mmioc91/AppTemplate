@@ -40,6 +40,7 @@ the code implements it and every choice that had to be made along the way.
 | 0029 | [Hosting: one origin behind a reverse proxy, migrations as a deploy step](0029-hosting-behind-a-proxy-with-migrations-as-a-deploy-step.md) | Accepted | 2026-10-13 |
 | 0030 | [No Idempotency-Key for creates until a client retries them automatically](0030-no-idempotency-key-until-a-client-retries-creates.md) | Accepted | 2026-10-13 |
 | 0031 | [Authentication: ASP.NET Core Identity with JWT bearer tokens](0031-identity-with-jwt-bearer-tokens.md) | Accepted | 2026-10-14 |
+| 0032 | [The web app: Angular, translated through i18n, on a generated client](0032-angular-frontend-setup.md) | Accepted | 2026-10-16 |
 
 ## Open questions
 

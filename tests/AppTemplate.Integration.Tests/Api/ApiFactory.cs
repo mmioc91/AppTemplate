@@ -1,3 +1,5 @@
+using System.Globalization;
+using AppTemplate.Api.Auth;
 using AppTemplate.Infrastructure;
 using AppTemplate.Infrastructure.Identity;
 using AppTemplate.Integration.Tests.Persistence;
@@ -37,6 +39,9 @@ internal sealed class ApiFactory(
             .UseEnvironment(environment)
             .UseSetting($"ConnectionStrings:{DependencyInjection.ConnectionStringName}", connectionString)
             .UseSetting($"{JwtOptions.SectionName}:{nameof(JwtOptions.SigningKey)}", SigningKey)
+            // The production limit, not Development's raised one (appsettings.Development.json): the rate-limit tests
+            // spend the real window.
+            .UseSetting($"{AuthRateLimitOptions.SectionName}:{nameof(AuthRateLimitOptions.AuthPerMinute)}", AuthRateLimitOptions.DefaultPerMinute.ToString(CultureInfo.InvariantCulture))
             .ConfigureServices(services =>
             {
                 if (time is not null)
