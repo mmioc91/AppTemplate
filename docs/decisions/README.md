@@ -41,6 +41,7 @@ the code implements it and every choice that had to be made along the way.
 | 0030 | [No Idempotency-Key for creates until a client retries them automatically](0030-no-idempotency-key-until-a-client-retries-creates.md) | Accepted | 2026-10-13 |
 | 0031 | [Authentication: ASP.NET Core Identity with JWT bearer tokens](0031-identity-with-jwt-bearer-tokens.md) | Accepted | 2026-10-14 |
 | 0032 | [The web app: Angular, translated through i18n, on a generated client](0032-angular-frontend-setup.md) | Accepted | 2026-10-16 |
+| 0033 | [Deployment: one host with Docker Compose, Caddy in front, the security headers and the CSP at the proxy](0033-one-host-with-docker-compose-and-caddy.md) | Accepted | 2026-10-16 |
 
 ## Open questions
 
@@ -55,10 +56,6 @@ Not decided yet. When one is settled, it becomes a new ADR and is removed from t
   that must work without a tenant (logout) says so with an attribute; every use case gets a tenant-boundary
   integration test (two users, neither sees the other's data). A product without tenants scopes loads by owner
   instead (`GetAsync(id, owner)`), and another owner's data answers 404, never 403.
-- **Hosting platform.** The code side is settled ([0029](0029-hosting-behind-a-proxy-with-migrations-as-a-deploy-step.md));
-  what remains is where it runs: one Linux VM with Docker Compose and Caddy (proven), or a managed platform. It
-  arrives with the `deploy/` files and their own ADR, together with the security headers and Content-Security-Policy
-  the proxy sends.
 - **Account deletion and GDPR erasure.** A real delete, not a soft one — erasure means the personal data is gone — as
   an explicit flow that deletes the user's data, their tenant (if they are its last owner) and the account in order;
   the database refuses shortcuts (`ON DELETE RESTRICT`). Open: what happens to a shared tenant when a non-last owner
@@ -77,6 +74,7 @@ Not decided yet. When one is settled, it becomes a new ADR and is removed from t
 
 - **Status:** Proposed | Accepted | Superseded by NNNN
 - **Date:** YYYY-MM-DD
+- **Changes:** NNNN (only when this decision alters a part of an earlier one without replacing it; say which part)
 
 ## Context
 Why a decision was needed.

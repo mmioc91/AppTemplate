@@ -1,0 +1,94 @@
+name: deploy
+
+# Builds the two images on a version tag (or by hand, from any branch) and pushes them to GitHub's registry; once a
+# server is set up — repository variables DEPLOY_HOST, DEPLOY_USER, DEPLOY_KNOWN_HOSTS (and DEPLOY_DIR if not
+# /opt/apptemplate), secret DEPLOY_SSH_KEY — a tag also restarts the stack there (ADR 0033, deploy/README.md). Without
+# those, or from a branch, it only builds.
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: deploy
+  cancel-in-progress: false
+
+jobs:
+  images:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    outputs:
+      api: ${{ steps.names.outputs.api }}
+      web: ${{ steps.names.outputs.web }}
+    steps:
+      - uses: actions/checkout@v4
+
+      # Registry names are lowercase; the repository's may not be. A branch name's slashes are no tag characters.
+      - name: Image names
+        id: names
+        run: |
+          base="ghcr.io/${GITHUB_REPOSITORY,,}"
+          tag="${GITHUB_REF_NAME//\//-}"
+          echo "api=$base/api:$tag" >> "$GITHUB_OUTPUT"
+          echo "web=$base/web:$tag" >> "$GITHUB_OUTPUT"
+
+      - uses: docker/setup-buildx-action@v4
+
+      - uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Api image
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: deploy/api.Dockerfile
+          push: true
+          tags: ${{ steps.names.outputs.api }}
+          cache-from: type=gha,scope=api
+          cache-to: type=gha,scope=api,mode=max
+
+      - name: Web image
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: deploy/web.Dockerfile
+          push: true
+          tags: ${{ steps.names.outputs.web }}
+          cache-from: type=gha,scope=web
+          cache-to: type=gha,scope=web,mode=max
+
+  # Only a tag reaches the server: a manual run from a branch builds images to try, never a deploy.
+  server:
+    needs: images
+    if: vars.DEPLOY_HOST != '' && github.ref_type == 'tag'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+
+      # The migrate service runs first and the Api waits for it, so the schema is ready before the new version serves.
+      # The images the previous release ran are pruned once the new one is up; a rollback pulls its tag again.
+      - name: Pull the images and restart the stack
+        env:
+          SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          KNOWN_HOSTS: ${{ vars.DEPLOY_KNOWN_HOSTS }}
+          TARGET: ${{ vars.DEPLOY_USER }}@${{ vars.DEPLOY_HOST }}
+          DIR: ${{ vars.DEPLOY_DIR || '/opt/apptemplate' }}
+          API: ${{ needs.images.outputs.api }}
+          WEB: ${{ needs.images.outputs.web }}
+        run: |
+          mkdir -p ~/.ssh
+          install -m 600 /dev/null ~/.ssh/deploy
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/deploy
+          printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts
+          scp -i ~/.ssh/deploy deploy/compose.yml deploy/backup.sh "$TARGET:$DIR/"
+          ssh -i ~/.ssh/deploy "$TARGET" \
+            "cd '$DIR' && chmod +x backup.sh && docker pull '$API' && docker pull '$WEB' && API_IMAGE='$API' WEB_IMAGE='$WEB' docker compose --env-file .env up -d --no-build && docker image prune -af"

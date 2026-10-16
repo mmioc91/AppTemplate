@@ -1,0 +1,21 @@
+# What the images never need: build output, dependencies installed inside the image, tests, docs, local secrets.
+**/bin/
+**/obj/
+**/StrykerOutput/
+**/TestResults/
+web/node_modules/
+web/dist/
+web/.angular/
+web/test-results/
+web/playwright-report/
+tests/
+docs/
+.git/
+.github/
+.claude/
+.idea/
+.vs/
+**/.env
+**/.env.*
+deploy/.env
+**/appsettings.*.Local.json

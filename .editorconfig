@@ -455,5 +455,5 @@ dotnet_diagnostic.S6781.severity = none
 [**/Persistence/Migrations/*.cs]
 generated_code = true
 # bash runs these on every OS (ADR 0021): LF in the working tree too, whatever the editor would otherwise do.
-[{.githooks/*,*.sh}]
+[{.githooks/*,*.sh,deploy/**,.dockerignore}]
 end_of_line = lf

@@ -74,7 +74,12 @@ Don't flag anything the build already enforces (analyzers, `.editorconfig` error
 - The rules in `web/CLAUDE.md`: every visible text marked for translation with an explicit id and its Croatian target,
   errors shown by code through `error-messages.ts`, forms that check exactly what the API checks, no token handled
   outside `AuthService`, the generated client regenerated (never edited) with a contract change, a new screen's main
-  flow in `e2e/`.
+  flow in `e2e/`. Anything the app loads from another site (a script, a font, an embed) changes the
+  Content-Security-Policy in `deploy/Caddyfile` first (ADR 0033).
+
+### Deploy
+- A new setting the Api needs in production reaches `deploy/compose.yml` and `deploy/env.example` in the same change
+  (ADR 0033); a secret only ever as an env-file variable, never a default in the compose file.
 
 ### Tests
 - New or changed behavior has tests in the right project (`tests/CLAUDE.md`, ADR 0010); use cases have the

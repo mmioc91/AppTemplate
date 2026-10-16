@@ -1,6 +1,7 @@
 <Solution>
   <Folder Name="/Solution Items/">
     <File Path="CLAUDE.md" />
+    <File Path=".dockerignore" />
     <File Path=".editorconfig" />
     <File Path=".gitattributes" />
     <File Path=".gitleaks.toml" />
@@ -12,6 +13,15 @@
     <File Path="docker-compose.yml" />
     <File Path="rename-template.ps1" />
     <File Path="README.md" />
+  </Folder>
+  <Folder Name="/deploy/">
+    <File Path="deploy/README.md" />
+    <File Path="deploy/compose.yml" />
+    <File Path="deploy/env.example" />
+    <File Path="deploy/Caddyfile" />
+    <File Path="deploy/api.Dockerfile" />
+    <File Path="deploy/web.Dockerfile" />
+    <File Path="deploy/backup.sh" />
   </Folder>
   <Folder Name="/src/">
     <Project Path="src/AppTemplate.Api/AppTemplate.Api.csproj" />

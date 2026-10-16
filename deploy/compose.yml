@@ -1,0 +1,95 @@
+# AppTemplate on one server (ADR 0033): Postgres, a migration step, the Api and Caddy serving the app — any Linux host
+# with Docker. Settings come from an env file next to this one (copy env.example to .env and fill it in):
+#   docker compose --env-file .env up -d
+# Images are built here by default; the deploy workflow pushes them to a registry instead (API_IMAGE, WEB_IMAGE).
+
+# A name of its own: the root docker-compose.yml (the developer's Postgres) is project "apptemplate" and names its
+# volume pgdata too — one name would make this stack mount the dev cluster, and `down -v` would delete it.
+name: apptemplate-stack
+
+services:
+  db:
+    image: postgres:17
+    environment:
+      POSTGRES_DB: apptemplate
+      POSTGRES_USER: apptemplate
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U apptemplate -d apptemplate"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    restart: unless-stopped
+    networks: [backend]
+
+  # The schema brought up to date before the Api serves (ADR 0029); it exits when done, and the Api waits for it.
+  migrate:
+    image: ${API_IMAGE:-apptemplate-api}
+    build:
+      context: ..
+      dockerfile: deploy/api.Dockerfile
+    environment:
+      ConnectionStrings__Db: Host=db;Database=apptemplate;Username=apptemplate;Password=${POSTGRES_PASSWORD}
+      Database__MigrateAndExit: "true"
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: "no"
+    networks: [backend]
+
+  api:
+    image: ${API_IMAGE:-apptemplate-api}
+    build:
+      context: ..
+      dockerfile: deploy/api.Dockerfile
+    environment:
+      ConnectionStrings__Db: Host=db;Database=apptemplate;Username=apptemplate;Password=${POSTGRES_PASSWORD}
+      Jwt__SigningKey: ${JWT_SIGNING_KEY:?set JWT_SIGNING_KEY}
+      # Sign-ins and registrations a minute per client (ADR 0031, 0032): 10, unless the e2e suite runs against this stack.
+      RateLimits__AuthPerMinute: ${AUTH_RATE_LIMIT_PER_MINUTE:-10}
+      # The public host, and "api" for Caddy's health checks from inside the network.
+      AllowedHosts: ${ALLOWED_HOSTS:?set ALLOWED_HOSTS};api
+      # Caddy's network: the only sender whose X-Forwarded-For is believed (ADR 0029).
+      Proxy__KnownNetworks: ${EDGE_SUBNET:-172.29.0.0/24}
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    restart: unless-stopped
+    networks: [backend, edge]
+
+  web:
+    image: ${WEB_IMAGE:-apptemplate-web}
+    build:
+      context: ..
+      dockerfile: deploy/web.Dockerfile
+    environment:
+      SITE_ADDRESS: ${SITE_ADDRESS:?set SITE_ADDRESS}
+    ports:
+      - "${HTTP_PORT:-80}:80"
+      - "${HTTPS_PORT:-443}:443"
+      - "${HTTPS_PORT:-443}:443/udp"
+      # Plain HTTP for a local try, on this machine only: on a server it is an answerless open port otherwise.
+      - "127.0.0.1:${LOCAL_PORT:-8080}:8080"
+    volumes:
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on:
+      - api
+    restart: unless-stopped
+    networks: [edge]
+
+networks:
+  backend: {}
+  # A fixed subnet, so the Api can name it as the one proxy it trusts; a second stack on the same host takes another
+  # (EDGE_SUBNET), or Docker refuses to create the network.
+  edge:
+    ipam:
+      config:
+        - subnet: ${EDGE_SUBNET:-172.29.0.0/24}
+
+volumes:
+  pgdata: {}
+  caddy-data: {}
+  caddy-config: {}

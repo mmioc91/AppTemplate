@@ -34,7 +34,9 @@ comes from the project's frontend brief (`docs/README.md` says where it lives).
   holds screens with their signal-based services, `layout/` the shell. Feature routes are lazy (`loadComponent`).
   Standalone components, signals, functional interceptors and guards; no NgModules, no state library.
 - **Same origin**: the client's paths start with `/api/v1` and `API_BASE_URL` is empty — locally the dev server
-  proxies to the API's http profile (`proxy.conf.json`), in production one host serves both.
+  proxies to the API's http profile (`proxy.conf.json`), in production Caddy serves both (`deploy/`, ADR 0033). The
+  production build is one app per language: the market's at `/`, the source language under `/en/` (`angular.json` →
+  `i18n`); `npm start` serves the market's language at `/`, `npm run start:en` the source language at `/`.
 - **Forms**: validators that check what the API checks, the way it checks — `requiredTextChecks` (white space only is
   empty, as FluentValidation's `NotEmpty`), Angular's `minLength`/`maxLength` (FluentValidation counts the value as
   sent), limits mirrored from Application in a `*-rules.ts` (`core/auth/auth-rules.ts`); never `Validators.email` — an
@@ -55,16 +57,26 @@ comes from the project's frontend brief (`docs/README.md` says where it lives).
   `flushProblem(...)` (`src/testing/http.ts`). Page tests fake the services, not the HTTP client, and navigate through
   `RouterTestingHarness`. Drive Material through its test harnesses where a harness exists.
 - **End to end** (`npm run e2e`): Playwright in `e2e/`, Chromium against the real API (http profile, started by
-  Playwright unless running) and the app in English on port 4300; locally they need Postgres (`docker compose up -d`)
-  and the API's user-secrets. Every `test` starts signed in as a user of its own (the automatic `user` fixture
-  registers one through the API); a visitor's flow uses Playwright's own `test`. Set up what a flow needs through the
-  API, then do the flow on the screen. Locate by role, label and text, never CSS; no fixed waits. A new screen adds
-  its main flow here in the same PR.
+  Playwright unless running) and the **production build**, served by `e2e/serve.mjs` the way Caddy does — one origin,
+  the market's language at `/`, the source language under `/en/`, where the tests run (`app('login')`), under the
+  Content-Security-Policy read from `deploy/Caddyfile`: a violation fails the test (ADR 0033). Locally they need
+  Postgres (`docker compose up -d`) and the API's user-secrets; against the deployed stack:
+  `E2E_PORT=8080 API_URL=http://localhost:8080 npm run e2e`. Every `test` starts signed in as a user of its own (the
+  automatic `user` fixture registers one through the API); a visitor's flow uses `visitor`. Set up what a flow needs
+  through the API, then do the flow on the screen. Locate by role, label and text, never CSS; no fixed waits. A new
+  screen adds its main flow here in the same PR.
 - **CI**: `ci-web.yml` — `npm ci`, lint (with the e2e type check), format check, production build (every locale),
   unit tests; `ci-e2e.yml` — the API on a fresh Postgres, the generated client checked against it, then the end-to-end
-  tests.
+  tests on the production build; `deploy.yml` builds the web image (`deploy/web.Dockerfile`) on a tag.
 
 ## Gotchas
+- The app runs under a Content-Security-Policy (ADR 0033), written once in `deploy/Caddyfile`; `e2e/serve.mjs` sends
+  the same, and every e2e test fails on a violation. Anything loaded from elsewhere (a script, a font, an image host)
+  or an inline script needs the policy changed first. That's also why the production build keeps `inlineCritical` off
+  (`angular.json`): it would load the styles through an inline script the policy blocks, and the app would come up
+  unstyled.
+- `npm run e2e` builds and serves `dist/` itself and refuses an occupied port 4400 rather than reuse a server left
+  from an earlier run (it would test that run's build); only with `E2E_PORT` given is a running server reused.
 - Prettier keeps each file's line endings (`"endOfLine": "auto"`, ADR 0021) and rewraps templates — re-read a template
   before an exact-match edit, and run `npm run i18n` after a reflow: a source text's whitespace changes with it.
 - The sign-in rate limit is 10 a minute per client in production; Development raises it to 100
