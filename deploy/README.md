@@ -27,16 +27,20 @@ refuses the network.
    ports 80 and 443 open; a DNS name pointing at it.
 2. On the server: `mkdir -p /opt/apptemplate` and put the filled-in env file there as `/opt/apptemplate/.env` (from
    `env.example`: the domain in `SITE_ADDRESS` and `ALLOWED_HOSTS`; secrets from `openssl rand -base64 32`). Keep it
-   readable by the deploying user only (`chmod 600`).
+   readable by the deploying user only (`chmod 600`). `mkdir -p /opt/apptemplate/backups` for the backups and their
+   log.
 3. Let the server read the images: `docker login ghcr.io` with a token that may read packages (GitHub packages are
    private by default).
 4. In the GitHub repository: variables `DEPLOY_HOST`, `DEPLOY_USER`, `DEPLOY_KNOWN_HOSTS` (the output of
    `ssh-keyscan <host>`, checked by hand), optionally `DEPLOY_DIR` (default `/opt/apptemplate`); secret
    `DEPLOY_SSH_KEY` (a key only for deploying, its public half in the deploying user's `authorized_keys`).
 5. Push a tag `v…`: the `deploy` workflow builds both images, pushes them to GHCR, copies `compose.yml` and `backup.sh`
-   to the server and starts the stack. The migration runs first; the Api starts only once it succeeded.
+   to the server and starts the stack. The migration runs first; the Api starts only once it succeeded. Images the
+   previous release ran are pruned; to roll back, run the workflow again for the earlier tag.
 
 Without the variables the workflow only builds and pushes the images — for a server set up by hand, or another host.
+A manual run from a branch builds images tagged with the branch name (slashes as dashes) to try somewhere; only a tag
+reaches the server.
 
 ## Running it
 
@@ -52,7 +56,8 @@ Without the variables the workflow only builds and pushes the images — for a s
   `docker compose --env-file .env exec -T db pg_restore --username=apptemplate --dbname=apptemplate --clean --if-exists < backups/apptemplate-….dump`,
   then `docker compose --env-file .env start api`. Try a restore into a scratch database once, before you need it.
 - **Settings:** a changed value in `.env` is applied by `docker compose --env-file .env up -d` — the Api restarts with
-  it, nothing is rebuilt.
+  it, nothing is rebuilt. Except `POSTGRES_PASSWORD`: Postgres reads it only when its volume is first created; changing
+  it later means changing the password in the database too (`ALTER ROLE apptemplate PASSWORD '…'`).
 - **Security headers** (ADR 0033): Caddy sends HSTS, `X-Frame-Options`, `nosniff`, the referrer policy and the app's
   Content-Security-Policy, and drops the `Server` header. Anything new the app loads from another site (a script, a
   font, an embed) needs that policy in `Caddyfile` changed first — the end-to-end tests run under it and fail on a

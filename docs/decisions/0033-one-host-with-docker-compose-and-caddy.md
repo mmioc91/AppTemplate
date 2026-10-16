@@ -44,11 +44,13 @@ as the answer to a deep link — is `no-cache`, revalidated on every load, so a 
 **Languages:** the market's language at `/`, the source language under `/en/` (0032); Caddy answers a deep link with
 its language's `index.html`.
 
-**The deploy workflow** (`deploy.yml`): a tag `v*`, or a manual run, builds both images and pushes them to GitHub's
-registry as `ghcr.io/<owner>/<repo>/api:<tag>` and `…/web:<tag>`. With the repository variables `DEPLOY_HOST`,
-`DEPLOY_USER`, `DEPLOY_KNOWN_HOSTS` (and `DEPLOY_DIR`) and the secret `DEPLOY_SSH_KEY` set, it then copies
-`compose.yml` and `backup.sh` to the server and runs `docker compose up -d --no-build` with the new image names;
-without them it only builds, for a server set up by hand.
+**The deploy workflow** (`deploy.yml`): a tag `v*`, or a manual run from any branch, builds both images and pushes
+them to GitHub's registry as `ghcr.io/<owner>/<repo>/api:<tag>` and `…/web:<tag>` (a branch's name with its slashes
+as dashes). With the repository variables `DEPLOY_HOST`, `DEPLOY_USER`, `DEPLOY_KNOWN_HOSTS` (and `DEPLOY_DIR`) and
+the secret `DEPLOY_SSH_KEY` set, a **tag** then copies `compose.yml` and `backup.sh` to the server, runs
+`docker compose up -d --no-build` with the new image names and prunes the images the previous release ran; a manual
+run from a branch never reaches the server, and without the variables nothing does — the images are there for a server
+set up by hand. A rollback is the workflow run again for the earlier tag.
 
 **Backups:** `deploy/backup.sh` — `pg_dump` in custom format from the `db` container, written under a temporary name
 and renamed only when complete, the newest 14 kept — from the server's cron, with a copy taken off the host.

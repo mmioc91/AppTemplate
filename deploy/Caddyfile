@@ -30,10 +30,20 @@ handle @api {
 handle {
 	root * /srv
 
+	# Immutable only where the file exists: a 404 (an old release's bundle) must not be cached for a year, since a hash
+	# comes back when its content does.
 	@hashed path_regexp -[0-9A-Za-z_-]{8}\.(js|css)$
-	header @hashed Cache-Control "public, max-age=31536000, immutable"
+	@hashedFile {
+		path_regexp -[0-9A-Za-z_-]{8}\.(js|css)$
+		file
+	}
+	header @hashedFile Cache-Control "public, max-age=31536000, immutable"
 	@media path /media/* /en/media/*
-	header @media Cache-Control "public, max-age=31536000, immutable"
+	@mediaFile {
+		path /media/* /en/media/*
+		file
+	}
+	header @mediaFile Cache-Control "public, max-age=31536000, immutable"
 	@revalidated {
 		not path_regexp -[0-9A-Za-z_-]{8}\.(js|css)$
 		not path /media/* /en/media/*
@@ -46,6 +56,13 @@ handle {
 	# under the policy that ships.
 	header Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'self'"
 
+	# An asset that isn't there (an old release's, asked for by a tab opened before a deploy) is a 404, not a page.
+	handle @hashed {
+		file_server
+	}
+	handle @media {
+		file_server
+	}
 	@english path /en /en/*
 	handle @english {
 		try_files {path} /en/index.html

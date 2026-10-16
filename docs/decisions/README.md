@@ -74,6 +74,7 @@ Not decided yet. When one is settled, it becomes a new ADR and is removed from t
 
 - **Status:** Proposed | Accepted | Superseded by NNNN
 - **Date:** YYYY-MM-DD
+- **Changes:** NNNN (only when this decision alters a part of an earlier one without replacing it; say which part)
 
 ## Context
 Why a decision was needed.

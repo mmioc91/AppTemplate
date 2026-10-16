@@ -5,6 +5,8 @@
 # A dump is written under a temporary name and renamed only once complete, so a failed run never leaves a file that
 # looks like a backup. A copy on the same disk goes down with the server: copy backups/ off it as well.
 set -euo pipefail
+# The dump holds every account's e-mail and password hash: the folder and the files for this user only.
+umask 077
 
 dir="$(cd "$(dirname "$0")" && pwd)"
 backups="${BACKUP_DIR:-$dir/backups}"

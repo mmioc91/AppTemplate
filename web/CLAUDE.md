@@ -75,6 +75,8 @@ comes from the project's frontend brief (`docs/README.md` says where it lives).
   or an inline script needs the policy changed first. That's also why the production build keeps `inlineCritical` off
   (`angular.json`): it would load the styles through an inline script the policy blocks, and the app would come up
   unstyled.
+- `npm run e2e` builds and serves `dist/` itself and refuses an occupied port 4400 rather than reuse a server left
+  from an earlier run (it would test that run's build); only with `E2E_PORT` given is a running server reused.
 - Prettier keeps each file's line endings (`"endOfLine": "auto"`, ADR 0021) and rewraps templates — re-read a template
   before an exact-match edit, and run `npm run i18n` after a reflow: a source text's whitespace changes with it.
 - The sign-in rate limit is 10 a minute per client in production; Development raises it to 100

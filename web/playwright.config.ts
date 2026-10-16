@@ -37,7 +37,9 @@ export default defineConfig({
     {
       command: 'npm run build && node e2e/serve.mjs',
       url: `http://localhost:${port}`,
-      reuseExistingServer: !ci,
+      // A static server over dist/ left running from an earlier run would test that run's build: reused only where the
+      // port was given on purpose (the deployed stack), otherwise an occupied port is an error to look at.
+      reuseExistingServer: !ci && process.env['E2E_PORT'] !== undefined,
       timeout: 240_000,
       env: { E2E_PORT: String(port), API_URL: apiUrl },
     },
