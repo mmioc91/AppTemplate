@@ -57,7 +57,15 @@
                 }
               ],
               "outputHashing": "all",
-              "localize": true
+              "localize": true,
+              "optimization": {
+                "scripts": true,
+                "styles": {
+                  "minify": true,
+                  "inlineCritical": false
+                },
+                "fonts": true
+              }
             },
             "development": {
               "optimization": false,
@@ -114,10 +122,14 @@
         }
       },
       "i18n": {
-        "sourceLocale": "en",
+        "sourceLocale": {
+          "code": "en",
+          "subPath": "en"
+        },
         "locales": {
           "hr": {
-            "translation": "src/locale/messages.hr.xlf"
+            "translation": "src/locale/messages.hr.xlf",
+            "subPath": ""
           }
         }
       }

@@ -6,6 +6,8 @@ on:
       - 'web/**'
       - 'src/**'
       - 'Directory.*.props'
+      # The tests run under the Content-Security-Policy it holds (ADR 0033).
+      - 'deploy/Caddyfile'
       - '.github/workflows/ci-e2e.yml'
   push:
     branches: [main]
@@ -13,6 +15,7 @@ on:
       - 'web/**'
       - 'src/**'
       - 'Directory.*.props'
+      - 'deploy/Caddyfile'
 
 permissions:
   contents: read
@@ -22,8 +25,9 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  # The app against the real API and a fresh Postgres (ADR 0032). Path-filtered, so never a required check (a PR that
-  # touches neither would wait for it forever).
+  # The production build of the app, under the shipped Content-Security-Policy, against the real API and a fresh
+  # Postgres (ADR 0032, 0033). Path-filtered, so never a required check (a PR that touches none of the paths would
+  # wait for it forever).
   web-e2e:
     runs-on: ubuntu-latest
     timeout-minutes: 30

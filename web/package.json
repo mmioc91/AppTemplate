@@ -9,8 +9,8 @@
     "watch": "ng build --watch --configuration development",
     "test": "ng test",
     "lint": "ng lint && tsc -p tsconfig.e2e.json",
-    "format": "prettier --write \"src/**/*.{ts,html,scss}\" \"e2e/**/*.ts\" playwright.config.ts",
-    "format:check": "prettier --check \"src/**/*.{ts,html,scss}\" \"e2e/**/*.ts\" playwright.config.ts",
+    "format": "prettier --write \"src/**/*.{ts,html,scss}\" \"e2e/**/*.{ts,mjs}\" playwright.config.ts",
+    "format:check": "prettier --check \"src/**/*.{ts,html,scss}\" \"e2e/**/*.{ts,mjs}\" playwright.config.ts",
     "i18n": "ng extract-i18n",
     "api": "nswag run nswag.json",
     "e2e": "playwright test"

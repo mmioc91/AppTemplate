@@ -46,7 +46,8 @@ See root `CLAUDE.md` for cross-cutting rules.
 - **Startup (ADR 0029):** migrations run on startup in Development only; `Database:MigrateAndExit=true` migrates and
   exits (the deploy step, before the new version serves; the key is `DependencyInjection.MigrateAndExitKey`);
   `UseForwardedHeaders` runs first and trusts `Proxy:KnownNetworks` next to loopback, nothing else; HSTS outside
-  Development; `AllowedHosts` is the real host in production configuration, never `*`.
+  Development; `AllowedHosts` is the real host in production configuration, never `*`. The `deploy/` stack sets all of
+  these (`compose.yml`, ADR 0033); a new production setting joins it and `env.example` in the same change.
 - **Logs and trace ids (ADR 0028):** log through `ILogger` with `[LoggerMessage]`; the request's W3C trace id is in
   every entry's scope and in every ProblemDetails as `traceId` (`ProblemDetailsSetup`) — never invent another
   correlation id. Production logs are JSON lines (`appsettings.Production.json`). A use case's outcome is logged by its

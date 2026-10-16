@@ -1,0 +1,58 @@
+# One origin for the app and the Api (ADR 0029, 0033). SITE_ADDRESS is the domain (Caddy gets and renews its
+# certificate) or, to try the stack locally, ":8080" for plain HTTP.
+{$SITE_ADDRESS}
+
+encode zstd gzip
+
+# HSTS without includeSubDomains: other hosts of the domain aren't ours to vouch for. Browsers ignore it over plain
+# HTTP, so the local stack is unaffected. Framing only by the app itself; no Server header (ADR 0033).
+header {
+	X-Content-Type-Options nosniff
+	Referrer-Policy strict-origin-when-cross-origin
+	Strict-Transport-Security "max-age=31536000"
+	X-Frame-Options SAMEORIGIN
+	-Server
+}
+
+# The Api and the health probes. Caddy sends X-Forwarded-For/-Proto, which the Api trusts from this network only
+# (Proxy__KnownNetworks, ADR 0029); an Api failing /health/ready is taken out of rotation.
+@api path /api/* /health/*
+handle @api {
+	reverse_proxy api:8080 {
+		health_uri /health/ready
+		health_interval 10s
+	}
+}
+
+# The app: files as they are, every other path to its language's index.html for the router — the market's at /, the
+# source language under /en/ (ADR 0032). The hashed bundles and the fonts are cached for good; everything else
+# (index.html above all, also as the answer to a deep link) is revalidated on every load, so a release reaches everyone.
+handle {
+	root * /srv
+
+	@hashed path_regexp -[0-9A-Za-z_-]{8}\.(js|css)$
+	header @hashed Cache-Control "public, max-age=31536000, immutable"
+	@media path /media/* /en/media/*
+	header @media Cache-Control "public, max-age=31536000, immutable"
+	@revalidated {
+		not path_regexp -[0-9A-Za-z_-]{8}\.(js|css)$
+		not path /media/* /en/media/*
+	}
+	header @revalidated Cache-Control "no-cache"
+
+	# The app's policy (ADR 0033): its own scripts only; inline styles for Angular's component styles; images and
+	# fonts from this origin; the Api on this origin; nothing framed, no plugins, no form posted elsewhere. Anything the
+	# app loads from another site needs this line changed first. web/e2e/serve.mjs reads it, so the end-to-end tests run
+	# under the policy that ships.
+	header Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'self'"
+
+	@english path /en /en/*
+	handle @english {
+		try_files {path} /en/index.html
+		file_server
+	}
+	handle {
+		try_files {path} /index.html
+		file_server
+	}
+}
