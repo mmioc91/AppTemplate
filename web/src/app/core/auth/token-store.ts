@@ -6,11 +6,14 @@ import { REFRESH_TOKEN_KEY } from './storage-keys';
 // as the tab.
 @Injectable({ providedIn: 'root' })
 export class TokenStore {
+  // Where the token stays when storage refuses it (a browser blocking site data throws on any access).
+  private memory: string | null = null;
+
   read(): string | null {
     try {
       return localStorage.getItem(REFRESH_TOKEN_KEY);
     } catch {
-      return null;
+      return this.memory;
     }
   }
 
@@ -22,7 +25,7 @@ export class TokenStore {
         localStorage.setItem(REFRESH_TOKEN_KEY, refreshToken);
       }
     } catch {
-      // No storage: nothing to remember.
+      this.memory = refreshToken;
     }
   }
 }

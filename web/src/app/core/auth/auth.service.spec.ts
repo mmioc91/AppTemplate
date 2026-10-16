@@ -2,9 +2,9 @@ import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
 import { firstValueFrom } from 'rxjs';
-import { flushProblem, jsonBlob, signedInUser, tokenPair } from '../../../testing/http';
+import { accessTokenFor, flushProblem, jsonBlob, signedInUser, tokenPair } from '../../../testing/http';
 import { API_BASE_URL } from '../api/api-client';
-import { AuthService } from './auth.service';
+import { AuthService, SessionEndedElsewhere } from './auth.service';
 import { REFRESH_TOKEN_KEY } from './storage-keys';
 
 describe('AuthService', () => {
@@ -20,7 +20,19 @@ describe('AuthService', () => {
     backend = TestBed.inject(HttpTestingController);
   });
 
-  afterEach(() => backend.verify());
+  afterEach(() => {
+    backend.verify();
+    vi.useRealTimers();
+    Reflect.deleteProperty(navigator, 'locks');
+  });
+
+  // Signed in as signedInUser, with an access token that is theirs.
+  async function signInAsAna(): Promise<void> {
+    const signedIn = firstValueFrom(auth.signIn('ana@example.com', 'correct horse battery'));
+    backend.expectOne('/api/v1/auth/login').flush(jsonBlob(tokenPair(accessTokenFor(signedInUser.id), 'refresh-1')));
+    await answerMe();
+    await signedIn;
+  }
 
   // The current user loaded after any sign-in.
   async function answerMe(): Promise<void> {
@@ -148,5 +160,108 @@ describe('AuthService', () => {
     // Assert
     expect(auth.isSignedIn()).toBe(false);
     expect(localStorage.getItem(REFRESH_TOKEN_KEY)).toBeNull();
+  });
+
+  it('refreshes the signed-in account and keeps it', async () => {
+    // Arrange
+    await signInAsAna();
+
+    // Act
+    const refreshed = firstValueFrom(auth.refresh());
+    (await vi.waitFor(() => backend.expectOne('/api/v1/auth/refresh'))).flush(
+      jsonBlob(tokenPair(accessTokenFor(signedInUser.id), 'refresh-2')),
+    );
+
+    // Assert
+    expect(await refreshed).toBe(accessTokenFor(signedInUser.id));
+    expect(auth.isSignedIn()).toBe(true);
+  });
+
+  it("ends this tab's session when another account signed in in another tab, keeping that account's token", async () => {
+    // Arrange: this tab shows Ana; another tab signed Ana out and Bo in, so storage holds Bo's refresh token.
+    await signInAsAna();
+    localStorage.setItem(REFRESH_TOKEN_KEY, 'refresh-bo');
+    const ended = vi.fn();
+    auth.endedElsewhere.subscribe(ended);
+
+    // Act
+    const refreshed = firstValueFrom(auth.refresh());
+    (await vi.waitFor(() => backend.expectOne('/api/v1/auth/refresh'))).flush(
+      jsonBlob(tokenPair(accessTokenFor('0199c000-0000-7000-8000-0000000000b0'), 'refresh-bo-2')),
+    );
+
+    // Assert: this tab never goes on as Bo, and Bo's session stays intact.
+    await expect(refreshed).rejects.toBeInstanceOf(SessionEndedElsewhere);
+    expect(auth.isSignedIn()).toBe(false);
+    expect(auth.accessToken()).toBeNull();
+    expect(localStorage.getItem(REFRESH_TOKEN_KEY)).toBe('refresh-bo-2');
+    expect(ended).toHaveBeenCalledOnce();
+  });
+
+  it("ends this tab's session at once when another tab signs out", async () => {
+    // Arrange
+    await signInAsAna();
+    const ended = vi.fn();
+    auth.endedElsewhere.subscribe(ended);
+
+    // Act: the other tab removed the token; the browser tells the rest.
+    localStorage.removeItem(REFRESH_TOKEN_KEY);
+    window.dispatchEvent(new StorageEvent('storage', { key: REFRESH_TOKEN_KEY, newValue: null }));
+
+    // Assert
+    expect(auth.isSignedIn()).toBe(false);
+    expect(ended).toHaveBeenCalledOnce();
+  });
+
+  it('refreshes inside the lock the tabs share', async () => {
+    // Arrange: a browser with Web Locks (jsdom has none).
+    const request = vi.fn((_name: string, callback: () => Promise<unknown>) => callback());
+    Object.defineProperty(navigator, 'locks', { value: { request }, configurable: true });
+    localStorage.setItem(REFRESH_TOKEN_KEY, 'refresh-1');
+
+    // Act
+    const refreshed = firstValueFrom(auth.refresh());
+    (await vi.waitFor(() => backend.expectOne('/api/v1/auth/refresh'))).flush(
+      jsonBlob(tokenPair('access-2', 'refresh-2')),
+    );
+    await refreshed;
+
+    // Assert
+    expect(request).toHaveBeenCalledWith('apptemplate.auth.refresh', expect.any(Function));
+  });
+
+  it('ends the session without asking the API when another tab signed out while this one waited for the lock', async () => {
+    // Arrange: the token is gone by the time this tab's turn comes.
+    const request = vi.fn((_name: string, callback: () => Promise<unknown>) => {
+      localStorage.removeItem(REFRESH_TOKEN_KEY);
+      return callback();
+    });
+    Object.defineProperty(navigator, 'locks', { value: { request }, configurable: true });
+    localStorage.setItem(REFRESH_TOKEN_KEY, 'refresh-1');
+
+    // Act
+    const refreshed = firstValueFrom(auth.refresh());
+
+    // Assert: afterEach verifies that no request went out.
+    await expect(refreshed).rejects.toMatchObject({ status: 401 });
+    expect(auth.canRefresh()).toBe(false);
+  });
+
+  it('stops waiting for a slow restore, which goes on in the background', async () => {
+    // Arrange
+    vi.useFakeTimers({ toFake: ['setTimeout'] });
+    localStorage.setItem(REFRESH_TOKEN_KEY, 'refresh-1');
+
+    // Act
+    const waited = auth.restoreWithin(5_000);
+    vi.advanceTimersByTime(5_000);
+    await waited;
+
+    // Assert: the start goes on signed out; the refresh is still under way.
+    expect(auth.isSignedIn()).toBe(false);
+    const refresh = backend.expectOne('/api/v1/auth/refresh');
+    refresh.flush(jsonBlob(tokenPair('access-2', 'refresh-2')));
+    await vi.waitFor(() => backend.expectOne('/api/v1/auth/me').flush(jsonBlob(signedInUser)));
+    await vi.waitFor(() => expect(auth.isSignedIn()).toBe(true));
   });
 });

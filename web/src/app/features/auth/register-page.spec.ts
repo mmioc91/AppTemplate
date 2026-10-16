@@ -1,4 +1,5 @@
 import { TestbedHarnessEnvironment } from '@angular/cdk/testing/testbed';
+import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { provideRouter, Router } from '@angular/router';
 import { RouterTestingHarness } from '@angular/router/testing';
@@ -12,8 +13,10 @@ import { RegisterPage } from './register-page';
 describe('RegisterPage', () => {
   let register: ReturnType<typeof vi.fn>;
   let harness: RouterTestingHarness;
+  const isSignedIn = signal(false);
 
   beforeEach(async () => {
+    isSignedIn.set(false);
     register = vi.fn();
     TestBed.configureTestingModule({
       providers: [
@@ -21,7 +24,7 @@ describe('RegisterPage', () => {
           { path: 'register', component: RegisterPage },
           { path: '**', children: [] },
         ]),
-        { provide: AuthService, useValue: { register } },
+        { provide: AuthService, useValue: { register, isSignedIn } },
       ],
     });
     harness = await RouterTestingHarness.create();
@@ -50,12 +53,16 @@ describe('RegisterPage', () => {
   }
 
   it('registers and lands home', async () => {
-    // Arrange
-    register.mockReturnValue(of(signedInUser));
+    // Arrange: a registration sets the session, as AuthService does.
+    register.mockImplementation(() => {
+      isSignedIn.set(true);
+      return of(signedInUser);
+    });
     fill('ana@example.com', 'correct horse battery', 'Ana');
 
     // Act
     await submit();
+    await harness.fixture.whenStable();
 
     // Assert
     expect(register).toHaveBeenCalledWith('ana@example.com', 'correct horse battery', 'Ana');
@@ -72,6 +79,18 @@ describe('RegisterPage', () => {
     // Assert
     expect(register).not.toHaveBeenCalled();
     expect(host.querySelector('mat-error')?.textContent).toContain('This value is too short.');
+  });
+
+  it('refuses a password of spaces only, as the API does', async () => {
+    // Arrange
+    fill('ana@example.com', ' '.repeat(AuthRules.passwordMinLength), 'Ana');
+
+    // Act
+    const host = await submit();
+
+    // Assert
+    expect(register).not.toHaveBeenCalled();
+    expect(host.querySelector('mat-error')?.textContent).toContain('This field is required.');
   });
 
   it('refuses a name of spaces only, as the API does', async () => {

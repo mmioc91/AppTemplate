@@ -36,7 +36,10 @@ page. One refresh at a time — parallel 401s share it, and tabs take turns thro
 one token would look like a stolen copy. The auth interceptor puts the bearer on every API call except the sign-in
 calls, refreshes once on a 401 and repeats the call; only a refused refresh, or a refresh token gone because another tab
 signed out, ends the session and goes to the sign-in page with a return URL (followed only within the app). A lost
-connection keeps the session.
+connection keeps the session. The tabs share the stored token but not the account on screen: a sign-out in another tab
+ends this one's session at once (a `storage` event), and a refresh that brings another account's token — signed in in
+another tab — ends this tab's session instead of going on as that account, keeping the token for the tab it belongs
+to. Without storage (a browser blocking site data) the token stays in memory, for as long as the tab.
 
 **Errors by code.** The API sends codes, never texts the user reads ([0018](0018-http-error-contract.md)); the app owns
 every sentence (`core/http/error-messages.ts`), translated like the rest. `problemOf` reads whatever the generated client

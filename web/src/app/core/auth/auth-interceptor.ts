@@ -4,6 +4,8 @@ import { Router } from '@angular/router';
 import { catchError, switchMap, throwError } from 'rxjs';
 import { AuthService } from './auth.service';
 
+// Same origin (ADR 0032): the API's paths start here, and nothing else ever gets the token — not another site whose
+// address happens to contain /api/.
 const API_PREFIX = '/api/';
 
 // The calls that sign in: they carry no token, and their 401 means wrong credentials or a refused refresh token, not an
@@ -17,7 +19,7 @@ export const authInterceptor: HttpInterceptorFn = (request, next) => {
   const auth = inject(AuthService);
   const router = inject(Router);
 
-  if (!request.url.includes(API_PREFIX)) {
+  if (!request.url.startsWith(API_PREFIX)) {
     return next(request);
   }
 
@@ -37,6 +39,12 @@ export const authInterceptor: HttpInterceptorFn = (request, next) => {
         return throwError(() => error);
       }
 
+      // A parallel call refreshed while this one was under way: its token is new already, no second rotation.
+      const fresh = auth.accessToken();
+      if (token !== null && fresh !== null && fresh !== token) {
+        return next(withBearer(request, fresh));
+      }
+
       // No refresh token any more: another tab signed out.
       if (!auth.canRefresh()) {
         endSession();
@@ -52,7 +60,7 @@ export const authInterceptor: HttpInterceptorFn = (request, next) => {
 
           return throwError(() => refreshError);
         }),
-        switchMap((fresh) => next(withBearer(request, fresh))),
+        switchMap((refreshed) => next(withBearer(request, refreshed))),
       );
     }),
   );

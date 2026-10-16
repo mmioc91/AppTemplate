@@ -1,4 +1,5 @@
 import { TestbedHarnessEnvironment } from '@angular/cdk/testing/testbed';
+import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { provideRouter, Router } from '@angular/router';
 import { RouterTestingHarness } from '@angular/router/testing';
@@ -12,8 +13,10 @@ import { LoginPage } from './login-page';
 describe('LoginPage', () => {
   let signIn: ReturnType<typeof vi.fn>;
   let harness: RouterTestingHarness;
+  const isSignedIn = signal(false);
 
   beforeEach(async () => {
+    isSignedIn.set(false);
     signIn = vi.fn();
     TestBed.configureTestingModule({
       providers: [
@@ -21,7 +24,7 @@ describe('LoginPage', () => {
           { path: 'login', component: LoginPage },
           { path: '**', children: [] },
         ]),
-        { provide: AuthService, useValue: { signIn } },
+        { provide: AuthService, useValue: { signIn, isSignedIn } },
       ],
     });
     harness = await RouterTestingHarness.create();
@@ -59,16 +62,41 @@ describe('LoginPage', () => {
   });
 
   it('signs in and returns to where the user was going', async () => {
-    // Arrange
-    signIn.mockReturnValue(of(signedInUser));
+    // Arrange: a sign-in sets the session, as AuthService does.
+    signIn.mockImplementation(() => {
+      isSignedIn.set(true);
+      return of(signedInUser);
+    });
     fill('ana@example.com', 'correct horse battery');
 
     // Act
     await submit();
+    await harness.fixture.whenStable();
 
     // Assert
     expect(signIn).toHaveBeenCalledWith('ana@example.com', 'correct horse battery');
     expect(TestBed.inject(Router).url).toBe('/orders');
+  });
+
+  it('goes on to where the user was going when the session is restored late', async () => {
+    // Act: the start stopped waiting, the guard sent the user here, then the restore finished.
+    isSignedIn.set(true);
+    await harness.fixture.whenStable();
+
+    // Assert
+    expect(TestBed.inject(Router).url).toBe('/orders');
+  });
+
+  it('does not send a password of spaces only, as the API would refuse it', async () => {
+    // Arrange
+    fill('ana@example.com', '          ');
+
+    // Act
+    const host = await submit();
+
+    // Assert
+    expect(signIn).not.toHaveBeenCalled();
+    expect(host.querySelector('mat-error')?.textContent).toContain('This field is required.');
   });
 
   it('shows one message for wrong credentials and stays on the page', async () => {

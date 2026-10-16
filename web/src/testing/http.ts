@@ -22,6 +22,16 @@ export function flushProblem(
   );
 }
 
+// An access token shaped like the API's (header.payload.signature) for the user with that id; the app reads only its
+// `sub`, and never checks the signature.
+export function accessTokenFor(userId: string): string {
+  const payload = btoa(JSON.stringify({ sub: userId }))
+    .replace(/=+$/, '')
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_');
+  return `header.${payload}.signature`;
+}
+
 export function tokenPair(accessToken: string, refreshToken: string): TokenPairResponse {
   return {
     accessToken,

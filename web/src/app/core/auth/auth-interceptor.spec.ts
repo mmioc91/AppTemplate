@@ -57,6 +57,28 @@ describe('authInterceptor', () => {
     expect(backend.expectOne('/assets/logo.svg').request.headers.has('Authorization')).toBe(false);
   });
 
+  it('never sends the token to another site, whatever its path', () => {
+    // Act
+    http.get('https://maps.example.com/api/geocode').subscribe();
+
+    // Assert
+    expect(backend.expectOne('https://maps.example.com/api/geocode').request.headers.has('Authorization')).toBe(false);
+  });
+
+  it('repeats a call with the token a parallel refresh already brought, without refreshing again', async () => {
+    // Act: the call went out with access-1; meanwhile another call's refresh brought access-2.
+    const answer = firstValueFrom(http.get('/api/v1/orders'));
+    auth.accessToken.set('access-2');
+    backend.expectOne('/api/v1/orders').flush(null, { status: 401, statusText: 'Unauthorized' });
+    const retried = backend.expectOne('/api/v1/orders');
+    retried.flush({ items: [] });
+
+    // Assert
+    expect(retried.request.headers.get('Authorization')).toBe('Bearer access-2');
+    expect(auth.refresh).not.toHaveBeenCalled();
+    expect(await answer).toEqual({ items: [] });
+  });
+
   it('refreshes after a 401 and repeats the call with the new token', async () => {
     // Arrange
     auth.refresh.mockReturnValue(of('access-2'));

@@ -41,7 +41,7 @@ module.exports = defineConfig([
     ignores: ['src/index.html'],
     extends: [angular.configs.templateRecommended, angular.configs.templateAccessibility],
     rules: {
-      // Every visible text is marked for translation, with an explicit id (ADR 0057). Icon names are not text.
+      // Every visible text is marked for translation, with an explicit id (ADR 0032). Icon names are not text.
       '@angular-eslint/template/i18n': [
         'error',
         { checkId: true, checkText: true, checkAttributes: false, ignoreTags: ['mat-icon'] },

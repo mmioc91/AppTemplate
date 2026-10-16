@@ -20,9 +20,12 @@ comes from the project's frontend brief (`docs/README.md` says where it lives).
   own 401 (wrong password), use `shownByInterceptor(problem)`.
 - **Session** (ADR 0031, 0032): `core/auth/AuthService` — the access token in memory, the refresh token in
   `localStorage` (`TokenStore`), the current user as a signal, restored at start-up. `authGuard` on the shell,
-  `guestGuard` on the sign-in pages; a return URL is followed only through `safeReturnUrl`. Never read or store a
-  token anywhere else, and never call the refresh endpoint around `AuthService.refresh()` (one refresh at a time,
-  across tabs).
+  `guestGuard` on the sign-in pages; a return URL is followed only through `safeReturnUrl`; the sign-in pages also go
+  on by themselves once a session restored late arrives. Never read or store a token anywhere else, and never call the
+  refresh endpoint around `AuthService.refresh()` (one refresh at a time, across tabs). The tabs share the stored token,
+  not the account on screen: a sign-out in another tab ends this tab's session at once (a `storage` event), and a
+  refresh that brings another account's token (signed in in another tab) ends it too, keeping that token for its tab —
+  both through `endedElsewhere`, which sends the tab to sign in.
 - **The API client is generated** (`npm run api` → `src/app/core/api/api-client.ts`, NSwag from `/openapi/v1.json` of a
   running API) and committed; never edit it by hand. Regenerate it in the same PR as the backend change that alters
   the contract — `ci-e2e.yml` fails otherwise. Dates and instants are ISO **strings**; a nullable field is `T | null`
@@ -66,8 +69,9 @@ comes from the project's frontend brief (`docs/README.md` says where it lives).
   before an exact-match edit, and run `npm run i18n` after a reflow: a source text's whitespace changes with it.
 - The sign-in rate limit is 10 a minute per client in production; Development raises it to 100
   (`appsettings.Development.json`, `RateLimits:AuthPerMinute`) because every e2e test registers from one address.
-- Two tabs on one origin share `localStorage`, so the refresh token: a second account needs another origin (or a
-  private window), never a second tab of the same one.
+- Two tabs on one origin share `localStorage`, so the refresh token: signing a second account in in another tab
+  signs the first tab out (by design, see Session). Test two accounts side by side in a private window or another
+  origin.
 - A plain `<form>` without `[formGroup]` needs `FormsModule`: with only `ReactiveFormsModule`, `(ngSubmit)` never fires
   and the browser submits the form — a page reload.
 - `fixture.whenStable()` also waits for unanswered requests: after flushing one that triggers another, wait with

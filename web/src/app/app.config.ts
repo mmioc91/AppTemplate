@@ -6,7 +6,7 @@ import {
   provideBrowserGlobalErrorListeners,
   provideEnvironmentInitializer,
 } from '@angular/core';
-import { provideRouter, withComponentInputBinding } from '@angular/router';
+import { provideRouter, Router, withComponentInputBinding } from '@angular/router';
 import { routes } from './app.routes';
 import { API_BASE_URL } from './core/api/api-client';
 import { authInterceptor } from './core/auth/auth-interceptor';
@@ -28,5 +28,12 @@ export const appConfig: ApplicationConfig = {
     { provide: API_BASE_URL, useValue: '' },
     // Back into the stored session before the first route decides who may see it — waiting a few seconds at most.
     provideAppInitializer(() => inject(AuthService).restoreWithin(RESTORE_WAIT_MS)),
+    // This tab's session ended in another tab (a sign-out, another account): sign in again to come back here.
+    provideAppInitializer(() => {
+      const router = inject(Router);
+      inject(AuthService).endedElsewhere.subscribe(
+        () => void router.navigate(['/login'], { queryParams: { returnUrl: router.url } }),
+      );
+    }),
   ],
 };

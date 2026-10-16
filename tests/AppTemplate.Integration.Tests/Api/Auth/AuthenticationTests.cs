@@ -314,7 +314,9 @@ public sealed class AuthenticationTests(PostgresFixture postgres)
     public async Task Login_TheHostsLimit_IsTheWindow()
     {
         // Arrange: a host that raised or lowered the limit (RateLimits:AuthPerMinute).
-        await using ApiFactory factory = new(postgres, settings: new Dictionary<string, string> { ["RateLimits:AuthPerMinute"] = "2" });
+        await using ApiFactory factory = new(
+            postgres,
+            settings: new Dictionary<string, string> { [$"{AuthRateLimitOptions.SectionName}:{nameof(AuthRateLimitOptions.AuthPerMinute)}"] = "2" });
         using HttpClient client = factory.CreateClient();
         string email = AuthClient.UniqueEmail();
         (await AuthClient.LoginAsync(client, email)).StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
@@ -325,6 +327,7 @@ public sealed class AuthenticationTests(PostgresFixture postgres)
 
         // Assert
         response.StatusCode.ShouldBe(HttpStatusCode.TooManyRequests);
+        (await AuthClient.ReadCodeAsync(response)).ShouldBe(ProblemCodes.TooManyRequests);
     }
 
     [Fact]

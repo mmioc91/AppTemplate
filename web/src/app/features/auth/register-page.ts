@@ -1,4 +1,4 @@
-import { Component, inject, signal } from '@angular/core';
+import { Component, effect, inject, signal } from '@angular/core';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
@@ -37,7 +37,7 @@ export class RegisterPage {
     password: new FormControl('', {
       nonNullable: true,
       validators: [
-        Validators.required,
+        ...requiredTextChecks,
         Validators.minLength(AuthRules.passwordMinLength),
         Validators.maxLength(AuthRules.passwordMaxLength),
       ],
@@ -49,9 +49,19 @@ export class RegisterPage {
   });
 
   protected readonly formError = signal<string | null>(null);
+
   protected readonly submitting = signal(false);
   protected readonly fieldErrorCode = fieldErrorCode;
   protected readonly errorMessage = errorMessage;
+
+  constructor() {
+    // Signed in — by this form, or by a session restored late: home.
+    effect(() => {
+      if (this.auth.isSignedIn()) {
+        void this.router.navigateByUrl('/');
+      }
+    });
+  }
 
   protected submit(): void {
     if (this.form.invalid) {
@@ -67,7 +77,8 @@ export class RegisterPage {
       .register(email, password, displayName)
       .pipe(finalize(() => this.submitting.set(false)))
       .subscribe({
-        next: () => void this.router.navigateByUrl('/'),
+        // Signed in: the effect above goes home.
+        next: () => undefined,
         error: (error: unknown) => {
           const problem = problemOf(error);
 
