@@ -3,7 +3,7 @@
 Base repo for new projects: "Use this template" on GitHub, then rename `AppTemplate` to the new project's name.
 
 Backend: ASP.NET Core (.NET 10), Clean Architecture layered by project, PostgreSQL.
-Frontend (later): Angular PWA in `web/`.
+Frontend: Angular in `web/` (ADR 0032).
 
 It is a walking skeleton, not an empty scaffold: the cross-cutting plumbing every project needs is already built,
 tested and documented, so the first commit of a new project can be its first use case.
@@ -58,6 +58,14 @@ dotnet run --project src/AppTemplate.Api
 # set AllowedHosts to the real host and Jwt__SigningKey to a key of its own.
 ```
 
+The web app (`web/README.md` for the rest):
+
+```powershell
+cd web
+npm ci
+npm start    # http://localhost:4200, the API proxied — start the API first
+```
+
 Integration tests start their own Postgres with Testcontainers — Docker must be running.
 
 ---
@@ -71,8 +79,9 @@ Integration tests start their own Postgres with Testcontainers — Docker must b
 | Auth | ASP.NET Core Identity + JWT bearer (ADR 0031): register / login / refresh / logout / me, hashed and rotating refresh tokens with family revoke and a reload-safe grace, a fallback policy (every endpoint protected unless `.AllowAnonymous()`), `ICurrentUser`, one 401 code for every login refusal at the cost of one password hash, lockout, per-IP rate limits (429 + `Retry-After`), roles ready to seed and build policies on | `src/*.Application/Auth`, `src/*.Infrastructure/Identity`, `src/*.Api/Auth` |
 | Persistence | `AppDbContext` (snake_case, UTC `DateTimeOffset`, smart-enum converter, Identity's tables renamed to match), the first migration, `IUnitOfWork` that turns unique violations and concurrency conflicts into Application exceptions (and `DiscardChanges()` to retry), retrying Npgsql, design-time factory for migrations, a reference-data seeding hook that runs after every migration | `src/*.Infrastructure` |
 | HTTP | ProblemDetails with a `code` and the W3C `traceId` on every error (422 domain, 400 validation, 401/403/404/409, framework errors, 429), API versioning + built-in OpenAPI per version typed for a generated client, strict JSON (enums by name, instants with an offset, numbers as numbers), `/health/live` + `/health/ready`, forwarded headers from known proxies only, migrations as a deploy step, JSON logs in production | `src/*.Api` |
+| Web | Angular 22 + Material 3: sign-in and registration, the session (access token in memory, rotating refresh token, one refresh across tabs), guards, errors shown by code, forms that check what the API checks, Angular i18n (English source, Croatian translation), an NSwag client generated from the OpenAPI document, Vitest and Playwright tests | `web/` |
 | Tests | Postgres fixture + `WebApplicationFactory` on the real DI setup (a fake clock, extra settings or an empty database on request), an auth client for the tests behind sign-in, error-contract tests, DI tests that prove every handler is logged and validated, architecture tests | `tests/` |
-| Decisions | 31 baseline ADRs + open questions (tenancy, hosting platform, account deletion, operator access, quota races) | `docs/decisions/` |
+| Decisions | 32 baseline ADRs + open questions (tenancy, hosting platform, account deletion, operator access, quota races) | `docs/decisions/` |
 | Claude Code | `CLAUDE.md` per layer and test project, project reviewer agent | `CLAUDE.md`, `.claude/agents/` |
 
 ---
@@ -99,7 +108,7 @@ Integration tests start their own Postgres with Testcontainers — Docker must b
 │  ├─ ubiquitous-language.md    UI terms and the code names for them
 │  └─ decisions/                ADRs (one per decision) + open questions
 ├─ .claude/agents/              Claude Code agents (project-rules reviewer)
-├─ web/                         Angular (coming later)
+├─ web/                         Angular app: sign-in, a generated API client, i18n, Vitest + Playwright
 ├─ .github/workflows/           CI
 ├─ .githooks/                   commit-msg, pre-push
 ├─ .config/dotnet-tools.json    local tools: dotnet-ef, dotnet-stryker
@@ -137,13 +146,14 @@ Unfinished work goes into `main` **behind a feature flag**, not on a long-lived 
 |---|---|
 | `backend-ci` | every PR (not path-filtered: `build-test` is a required check); push to `main` with changes in `src/`, `tests/`, `Directory.*.props` or the workflow itself; on PRs also report-only mutation testing (Stryker) of changed Domain/Application code, skipped with a notice when a PR changes more than 40 C# files of the project |
 | `web-ci` | PR / push to `main` with changes in `web/`: `npm run lint`, `npm run format:check`, a production build and `npm test` (Vitest) in the `web-build-test` job — `web/package.json` must provide exactly those scripts (Prettier with `"endOfLine": "auto"`, ADR 0021) |
+| `e2e` | PR / push to `main` with changes in `web/`, `src/` or `Directory.*.props`: the API on a fresh Postgres, the committed API client checked against a regenerated one, then Playwright (`web-e2e`) |
 | `pr-title` | on every PR (PR title = commit on `main` due to squash merge) |
 | `secrets-scan` | gitleaks on every PR / push |
 
 After the first push to GitHub, enable **branch protection** for `main`:
 Require PR + required status checks (`build-test`, `lint`), **without** "Require approvals"
 (a solo dev can't approve their own PR). Don't make `mutation` a required check — it is report-only — nor
-`web-build-test`: it is path-filtered, so a PR that doesn't touch `web/` would wait for it forever.
+`web-build-test` or `web-e2e`: they are path-filtered, so a PR that doesn't touch them would wait forever.
 A private repository on GitHub Free has no branch protection or rulesets at all; until the account is on Pro or Team,
 `main` changes only through pull requests merged once the checks are green — by convention, plus the local `pre-push`
 hook. Record that in an ADR so nobody later mistakes it for an oversight.

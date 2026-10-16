@@ -70,7 +70,8 @@ See root `CLAUDE.md` for cross-cutting rules.
   window per client: its IPv4 address, or its IPv6 /64 — `ApiRateLimiting.ClientKey`; a delegated /56 can still
   spread over its /64s, ADR 0031) is registered in
   `ApiRateLimiting`, and the limiter runs **after authentication** so a policy
-  can count per account: register and login carry `.RequireRateLimiting(AuthRateLimiting.PolicyName)`, refresh its
+  can count per account: register and login carry `.RequireRateLimiting(AuthRateLimiting.PolicyName)` — its number
+  is the host's (`RateLimits:AuthPerMinute`, 10; Development 100 for the e2e suite, ADR 0032) — refresh its
   own `RefreshPolicyName`; a later endpoint that mails someone or tells whether an address has an account (password
   reset, invitations) gets a policy of its own. Token lifetimes run on the host's `TimeProvider`, so an integration test expires tokens with a
   `FakeTimeProvider` through `ApiFactory` (Identity's lockout and the rate limiter keep the system clock). Gotcha: the

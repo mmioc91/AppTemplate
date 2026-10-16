@@ -35,20 +35,22 @@ internal static class ApiRateLimiting
                 return ValueTask.CompletedTask;
             };
 
-            AddFixedWindowPerClient(options, AuthRateLimiting.PolicyName, AuthRateLimiting.PermitLimit, AuthRateLimiting.Window);
+            options.AddPolicy<string, AuthRateLimiting>(AuthRateLimiting.PolicyName);
             AddFixedWindowPerClient(options, AuthRateLimiting.RefreshPolicyName, AuthRateLimiting.RefreshPermitLimit, AuthRateLimiting.Window);
         });
 
     private static void AddFixedWindowPerClient(RateLimiterOptions options, string policyName, int permitLimit, TimeSpan window) =>
-        options.AddPolicy(policyName, context =>
-            RateLimitPartition.GetFixedWindowLimiter(
-                ClientKey(context.Connection.RemoteIpAddress),
-                _ => new FixedWindowRateLimiterOptions
-                {
-                    PermitLimit = permitLimit,
-                    Window = window,
-                    QueueLimit = 0,
-                }));
+        options.AddPolicy(policyName, context => FixedWindowPerClient(context, permitLimit, window));
+
+    internal static RateLimitPartition<string> FixedWindowPerClient(HttpContext context, int permitLimit, TimeSpan window) =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            ClientKey(context.Connection.RemoteIpAddress),
+            _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = permitLimit,
+                Window = window,
+                QueueLimit = 0,
+            });
 
     // Who a client is, for its window. An IPv4 address as it is — also when a dual-stack socket reports it IPv6-mapped,
     // so ::ffff:203.0.113.7 and 203.0.113.7 share one window. An IPv6 address by its /64: one host can pick a fresh

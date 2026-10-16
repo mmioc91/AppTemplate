@@ -1,6 +1,7 @@
 using System.Net;
 using System.Text.Json;
 using AppTemplate.Api;
+using AppTemplate.Api.Auth;
 using AppTemplate.Api.Errors;
 using AppTemplate.Api.Health;
 using AppTemplate.Infrastructure.Identity;
@@ -210,6 +211,25 @@ public sealed class ApiHostTests(PostgresFixture postgres)
         OptionsValidationException exception = Should.Throw<OptionsValidationException>(act);
         exception.OptionsType.ShouldBe(typeof(JwtOptions));
         exception.Message.ShouldContain(nameof(JwtOptions.SigningKey));
+    }
+
+    [Theory]
+    [InlineData("0")]
+    [InlineData("-1")]
+    public async Task Startup_SignInRateLimitBelowOne_FailsNamingTheSetting(string perMinute)
+    {
+        // Arrange: zero would switch signing in off; the host refuses it rather than start without a way in (ADR 0032).
+        await using ApiFactory factory = new(
+            postgres,
+            settings: new Dictionary<string, string> { [$"{AuthRateLimitOptions.SectionName}:{nameof(AuthRateLimitOptions.AuthPerMinute)}"] = perMinute });
+
+        // Act
+        Action act = () => factory.CreateClient();
+
+        // Assert
+        OptionsValidationException exception = Should.Throw<OptionsValidationException>(act);
+        exception.OptionsType.ShouldBe(typeof(AuthRateLimitOptions));
+        exception.Message.ShouldContain(nameof(AuthRateLimitOptions.AuthPerMinute));
     }
 
     // Every endpoint declares exactly the statuses a client can meet (ADR 0009): one row per endpoint, added with it.

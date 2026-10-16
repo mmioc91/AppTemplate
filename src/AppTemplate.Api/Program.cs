@@ -24,6 +24,10 @@ builder.Services.AddOptions<JwtOptions>()
         options => options.TryGetSigningKey(out _),
         $"{JwtOptions.SectionName}:{nameof(JwtOptions.SigningKey)} must be base64 of at least {JwtOptions.MinSigningKeyBytes} bytes (README → Getting started).")
     .ValidateOnStart();
+builder.Services.AddOptions<AuthRateLimitOptions>()
+    .Bind(builder.Configuration.GetSection(AuthRateLimitOptions.SectionName))
+    .ValidateDataAnnotations()
+    .ValidateOnStart();
 
 // Every log entry of a request carries its W3C trace id (an incoming traceparent continues the caller's), and so does
 // every ProblemDetails (ADR 0028). Production writes the entries as JSON lines (appsettings.Production.json). This
