@@ -112,7 +112,7 @@ The whole stack as it ships — Postgres, migrations, the Api, Caddy with the ap
 │  ├─ implementation-plan.md    the ordered steps, ticked off as they land
 │  ├─ ubiquitous-language.md    UI terms and the code names for them
 │  └─ decisions/                ADRs (one per decision) + open questions
-├─ .claude/agents/              Claude Code agents (project-rules reviewer)
+├─ .claude/                     Claude Code: the project-rules reviewer agent, the shared command allowlist
 ├─ web/                         Angular app: sign-in, a generated API client, i18n, Vitest + Playwright
 ├─ deploy/                      Docker Compose stack, Dockerfiles, Caddyfile (HTTPS, headers, CSP), backup script
 ├─ .github/workflows/           CI
