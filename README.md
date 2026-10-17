@@ -86,7 +86,7 @@ The whole stack as it ships — Postgres, migrations, the Api, Caddy with the ap
 | Web | Angular 22 + Material 3: sign-in and registration, the session (access token in memory, rotating refresh token, one refresh across tabs), guards, errors shown by code, forms that check what the API checks, Angular i18n (English source, Croatian translation), an NSwag client generated from the OpenAPI document, Vitest and Playwright tests | `web/` |
 | Deploy | `deploy/`: Docker Compose (Postgres, a migrate step that runs before the Api serves, the Api, Caddy), two Dockerfiles, Caddy with automatic HTTPS, security headers and the app's Content-Security-Policy (the e2e tests run under it), caching that lets a release reach everyone, a backup script, a GitHub workflow that builds the images on a tag and restarts the server's stack | `deploy/`, `.github/workflows/deploy.yml` |
 | Tests | Postgres fixture + `WebApplicationFactory` on the real DI setup (a fake clock, extra settings or an empty database on request), an auth client for the tests behind sign-in, error-contract tests, DI tests that prove every handler is logged and validated, architecture tests | `tests/` |
-| Decisions | 34 baseline ADRs + open questions (tenancy, account deletion, operator access, quota races) | `docs/decisions/` |
+| Decisions | 34 baseline ADRs + open questions (tenancy, account deletion, operator access, quota races, scheduled jobs, feature switches, live updates) | `docs/decisions/` |
 | Claude Code | `CLAUDE.md` per layer and test project, project reviewer agent | `CLAUDE.md`, `.claude/agents/` |
 
 ---
