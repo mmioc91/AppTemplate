@@ -67,6 +67,24 @@ Not decided yet. When one is settled, it becomes a new ADR and is removed from t
   requests. Options: a per-tenant advisory lock or a serializable transaction around count + insert (inside the
   retrying execution strategy, [0013](0013-save-outcomes-unique-violations-and-conflicts.md)), or accept a soft limit.
   Settle before the first limit is enforced.
+- **Scheduled and recurring jobs.** One queue drained continuously is a hosted `BackgroundService` with no
+  dependencies, as the mail outbox does ([0034](0034-mail-through-an-outbox-claimed-with-a-lease.md)); Podium stayed
+  there. A job on a schedule (a nightly check, reminders before a deadline) is where UnifiedPackageTracker took
+  Hangfire on Postgres (its ADR 0046): cron, retries and a dashboard, with `DisableConcurrentExecution` so one run at
+  a time, `AutomaticRetry(Attempts = 0)` where the next run retries anyway, and the server started only where
+  `BackgroundJobs:RunServer` is true. Either way a run handles each item through the same use case in a DI scope of
+  its own, one `Activity` per run so its logs share a trace id ([0028](0028-logging-and-the-trace-id.md)). The
+  dashboard waits for operator access (above).
+- **Switching a feature on without a deploy.** A plain options bool, validated on start, when the switch is the same
+  for everyone (UnifiedPackageTracker's quota, its ADR 0020); `Microsoft.FeatureManagement` with a targeting context
+  when it is turned on for named users first (Podium's plans, its ADR 0080). A use case asks one gate class, never
+  the flag itself, and the tests cover both positions.
+- **Live updates.** A product with a screen that changes while it is watched: SignalR with the hub in the Api, a
+  push sent explicitly by the use case after its commit (no domain events, as with mail), a publisher that logs and
+  swallows transport errors so a failed push never fails the request, and a cap on what one connection follows
+  (Podium's ADRs 0023, 0024, 0081). One Api instance only until a backplane is added
+  ([0033](0033-one-host-with-docker-compose-and-caddy.md)); the Content-Security-Policy's `connect-src 'self'`
+  already allows the socket on the same origin.
 
 ## Template
 
