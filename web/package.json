@@ -44,7 +44,7 @@
     "nswag": "^14.7.1",
     "prettier": "^3.8.1",
     "typescript": "~6.0.2",
-    "typescript-eslint": "^8.71.2",
+    "typescript-eslint": "^8.72.0",
     "vitest": "^5.0.0"
   }
 }
