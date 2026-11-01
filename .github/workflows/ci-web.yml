@@ -38,7 +38,7 @@ jobs:
         run: echo "present=$([ -f web/package.json ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
 
       # Pinned to the Node a project's web image builds with (node:22), so CI tests what ships.
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         if: steps.web.outputs.present == 'true'
         with:
           node-version: '22'

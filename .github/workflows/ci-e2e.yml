@@ -71,7 +71,7 @@ jobs:
         with:
           dotnet-version: '10.x'
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         if: steps.web.outputs.present == 'true'
         with:
           node-version: '22'
