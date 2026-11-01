@@ -25,7 +25,7 @@ jobs:
       api: ${{ steps.names.outputs.api }}
       web: ${{ steps.names.outputs.web }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       # Registry names are lowercase; the repository's may not be. A branch name's slashes are no tag characters.
       - name: Image names
@@ -72,7 +72,7 @@ jobs:
     timeout-minutes: 20
     environment: production
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       # The migrate service runs first and the Api waits for it, so the schema is ready before the new version serves.
       # The images the previous release ran are pruned once the new one is up; a rollback pulls its tag again.
