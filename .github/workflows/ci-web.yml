@@ -27,7 +27,7 @@ jobs:
   web-build-test:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       # A change to this workflow runs it too; without a web/ folder yet there is nothing to build, so the steps below
       # skip instead of failing on npm ci. Decided on the runner: a job-level `if` cannot look at files (hashFiles is

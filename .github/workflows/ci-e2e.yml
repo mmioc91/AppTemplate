@@ -58,7 +58,7 @@ jobs:
       run:
         working-directory: web
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       # The template's web/ may have been removed by a project without a frontend: then there is nothing to run.
       - name: Is there a web app?
